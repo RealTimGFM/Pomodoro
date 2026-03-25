@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block title %}Pomodoro Flow | Home{% endblock %}
+
+{% block content %}
+  <section class="dashboard-grid">
+    <section class="panel hero-panel" aria-labelledby="timer-heading">
+      <div class="panel-header">
+        <div>
+          <p class="panel-kicker">Main timer</p>
+          <h1 class="panel-title" id="timer-heading">Keep the session simple.</h1>
+        </div>
+        <a class="ghost-button" href="{{ url_for('pages.settings') }}">Open settings</a>
+      </div>
+
+      <div class="hero-meta">
+        <div class="hero-meta__item">
+          <span class="meta-label">Current mode</span>
+          <strong class="meta-value" id="current-mode">Focus</strong>
+        </div>
+        <div class="hero-meta__item">
+          <span class="meta-label">Current task</span>
+          <strong class="meta-value" id="current-task">No active task selected</strong>
+        </div>
+        <div class="hero-meta__item">
+          <span class="meta-label">Now playing</span>
+          <strong class="meta-value" id="now-playing">Timer only</strong>
+        </div>
+      </div>
+
+      <div class="mode-selector" id="mode-selector" role="tablist" aria-label="Session mode">
+        <button class="segmented-button is-active" data-mode="focus" type="button">Focus</button>
+        <button class="segmented-button" data-mode="short_break" type="button">Short break</button>
+        <button class="segmented-button" data-mode="long_break" type="button">Long break</button>
+      </div>
+
+      <div class="timer-stage">
+        <div class="progress-ring" id="progress-ring">
+          <div class="progress-ring__inner">
+            <p class="timer-stage__label" id="timer-label">Ready for a clean start.</p>
+            <time class="timer-stage__clock" id="time-display" datetime="PT25M">25:00</time>
+            <p class="timer-stage__hint" id="timer-hint">
+              The timer keeps running accurately across refreshes and background tabs.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="countdown-banner hidden" id="countdown-banner" aria-live="assertive">
+        <span class="countdown-banner__label">Session change in</span>
+        <strong id="countdown-seconds">5</strong>
+        <span class="countdown-banner__label">seconds</span>
+      </div>
+
+      <div class="stats-strip">
+        <article class="stat-card">
+          <span class="meta-label">Completed focus sessions</span>
+          <strong class="meta-value" id="session-count">0</strong>
+        </article>
+        <article class="stat-card">
+          <span class="meta-label">Next break</span>
+          <strong class="meta-value" id="next-break-label">Short break</strong>
+        </article>
+        <article class="stat-card">
+          <span class="meta-label">Timer status</span>
+          <strong class="meta-value" id="timer-status">Idle</strong>
+        </article>
+      </div>
+
+      <div class="control-row">
+        <button class="primary-button" id="start-button" type="button">Start</button>
+        <button class="secondary-button" id="pause-button" type="button">Pause</button>
+        <button class="secondary-button" id="resume-button" type="button">Resume</button>
+        <button class="ghost-button" id="reset-button" type="button">Reset</button>
+        <button class="ghost-button" id="skip-button" type="button">Skip</button>
+        <button class="danger-button" id="finish-button" type="button">Finish task</button>
+      </div>
+
+      <div class="next-break">
+        <div>
+          <p class="panel-kicker">Focus cycle preference</p>
+          <h2 class="section-title">Choose the next break type</h2>
+        </div>
+        <div class="mode-selector" id="next-break-selector" role="tablist" aria-label="Next break type">
+          <button class="segmented-button is-active" data-next-break="short_break" type="button">Short break</button>
+          <button class="segmented-button" data-next-break="long_break" type="button">Long break</button>
+        </div>
+      </div>
+
+      <p class="status-message" id="app-message" aria-live="polite"></p>
+    </section>
+
+    <section class="panel media-panel" aria-labelledby="media-heading">
+      <div class="panel-header">
+        <div>
+          <p class="panel-kicker">Optional soundtrack</p>
+          <h2 class="panel-title" id="media-heading">Keep media helpful, not distracting.</h2>
+        </div>
+      </div>
+
+      <form class="stack-form" id="media-url-form">
+        <label class="field-label" for="media-url-input">Paste a YouTube video or playlist URL</label>
+        <div class="inline-form">
+          <input class="text-input" id="media-url-input" name="media-url" type="url" placeholder="https://www.youtube.com/watch?v=..." autocomplete="off">
+          <button class="secondary-button" type="submit">Load</button>
+        </div>
+      </form>
+
+      <form class="stack-form" id="media-search-form">
+        <label class="field-label" for="search-input">Search YouTube inside the app</label>
+        <div class="inline-form">
+          <input class="text-input" id="search-input" name="search" type="text" placeholder="classical study no lyrics" autocomplete="off">
+          <button class="secondary-button" id="search-button" type="submit">Search</button>
+        </div>
+        <p class="helper-text" id="search-helper">
+          {% if youtube_search_enabled %}
+            Search is enabled. Videos and playlists stay secondary to the timer flow.
+          {% else %}
+            Search needs a configured <code>YOUTUBE_API_KEY</code>. Pasted YouTube links still work without it.
+          {% endif %}
+        </p>
+      </form>
+
+      <div class="search-results" id="search-results" aria-live="polite"></div>
+
+      <div class="player-shell">
+        <div class="player-shell__header">
+          <div>
+            <p class="panel-kicker">Player</p>
+            <h3 class="section-title" id="media-source-title">No media selected</h3>
+          </div>
+          <button class="ghost-button ghost-button--compact" id="clear-media-button" type="button">Clear media</button>
+        </div>
+
+        <div class="player-frame">
+          <div class="player-frame__placeholder" id="player-placeholder">
+            Paste a link or search for something calm and repeatable.
+          </div>
+          <div id="youtube-player" class="youtube-player" aria-label="YouTube player"></div>
+        </div>
+
+        <div class="range-row">
+          <label class="field-label field-label--inline" for="volume-range">Volume</label>
+          <input id="volume-range" type="range" min="0" max="100" step="1">
+          <span class="range-value" id="volume-value">65%</span>
+        </div>
+
+        <p class="helper-text" id="autoplay-note">
+          Browser autoplay rules can require one click inside the embedded player the first time audio is used.
+        </p>
+      </div>
+    </section>
+
+    <section class="panel tasks-panel" aria-labelledby="tasks-heading">
+      <div class="panel-header">
+        <div>
+          <p class="panel-kicker">Task focus</p>
+          <h2 class="panel-title" id="tasks-heading">Keep the list lightweight.</h2>
+        </div>
+      </div>
+
+      <form class="stack-form" id="task-form">
+        <label class="field-label" for="task-input">Add a task</label>
+        <div class="inline-form">
+          <input class="text-input" id="task-input" name="task" type="text" maxlength="120" placeholder="Finish landing page polish" autocomplete="off">
+          <button class="secondary-button" type="submit">Add</button>
+        </div>
+      </form>
+
+      <div class="active-task-card" id="active-task-card">
+        <span class="meta-label">Active task</span>
+        <strong class="meta-value" id="active-task-summary">No task selected</strong>
+      </div>
+
+      <ul class="task-list" id="task-list"></ul>
+      <p class="helper-text" id="task-empty-state">No tasks yet. Add one and choose what this timer should support.</p>
+    </section>
+  </section>
+
+  <script type="module" src="{{ url_for('static', filename='js/home.js') }}"></script>
+{% endblock %}

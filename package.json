@@ -1,0 +1,8 @@
+{
+  "name": "pomodoro-flow",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:frontend": "node tests/js/timer-engine.test.js && node tests/js/storage.test.js"
+  }
+}

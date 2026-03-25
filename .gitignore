@@ -1,0 +1,6 @@
+.env*
+dump_project.py
+.venv/
+__pycache__/
+.pytest_cache/
+dump.txt
