@@ -8,5 +8,3 @@ services:
     envVars:
       - key: SECRET_KEY
         generateValue: true
-      - key: YOUTUBE_API_KEY
-        sync: false

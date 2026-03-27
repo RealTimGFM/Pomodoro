@@ -1,4 +1,4 @@
-from flask import Blueprint, current_app, render_template
+from flask import Blueprint, render_template
 
 pages_bp = Blueprint("pages", __name__)
 
@@ -6,7 +6,6 @@ pages_bp = Blueprint("pages", __name__)
 def _template_context(page_name: str) -> dict:
     return {
         "page_name": page_name,
-        "youtube_search_enabled": bool(current_app.config.get("YOUTUBE_API_KEY")),
     }
 
 

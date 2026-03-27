@@ -17,6 +17,16 @@ export const TIMER_STATUSES = Object.freeze({
   transition: "transition",
 });
 
+export const MEDIA_STATUSES = Object.freeze({
+  idle: "idle",
+  loading: "loading",
+  ready: "ready",
+  playing: "playing",
+  paused: "paused",
+  ended: "ended",
+  error: "error",
+});
+
 export const MODE_LABELS = Object.freeze({
   [MODES.focus]: "Focus",
   [MODES.shortBreak]: "Short break",
@@ -34,6 +44,10 @@ export const DEFAULT_SETTINGS = Object.freeze({
 
 export const TRANSITION_SECONDS = 5;
 export const TRANSITION_MS = TRANSITION_SECONDS * 1000;
+export const SOUNDCLOUD_WIDGET_SCRIPT_SRC = "https://w.soundcloud.com/player/api.js";
+export const SOUNDCLOUD_EMBED_BASE = "https://w.soundcloud.com/player/";
+export const AUTOPLAY_BLOCKED_MESSAGE =
+  "Browser blocked autoplay. Press play once and future timer control will work better.";
 
 export function getModeDurationMinutes(mode, settings = DEFAULT_SETTINGS) {
   switch (mode) {

@@ -16,7 +16,6 @@ def app():
     app.config.update(
         TESTING=True,
         SECRET_KEY="test-secret",
-        YOUTUBE_API_KEY="",
     )
     yield app
 

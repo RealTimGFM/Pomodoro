@@ -8,7 +8,7 @@
       <div class="panel-header">
         <div>
           <p class="panel-kicker">Preferences</p>
-          <h1 class="panel-title" id="settings-heading">Make the timer fit your actual routine.</h1>
+          <h1 class="panel-title" id="settings-heading">Tune the timer, notifications, and SoundCloud defaults without adding any backend weight.</h1>
         </div>
       </div>
 
@@ -25,7 +25,7 @@
           <label class="field-label" for="long-break-duration">Long break duration (minutes)</label>
           <input class="text-input" id="long-break-duration" name="longBreakDurationMinutes" type="number" min="1" max="180" inputmode="numeric">
 
-          <label class="field-label" for="default-volume">Default media volume</label>
+          <label class="field-label" for="default-volume">Default SoundCloud volume</label>
           <input id="default-volume" name="defaultVolume" type="range" min="0" max="100" step="1">
           <span class="range-value" id="default-volume-value">65%</span>
         </div>
@@ -78,7 +78,8 @@
         <li>Changes are saved in <code>localStorage</code>, so they stay local to this browser.</li>
         <li>Duration updates apply immediately to idle sessions and to future sessions in a running cycle.</li>
         <li>Browser notifications stay optional and degrade gracefully if permission is denied.</li>
-        <li>YouTube search is {% if youtube_search_enabled %}<strong>enabled</strong>{% else %}<strong>disabled until an API key is configured</strong>{% endif %}.</li>
+        <li>The app uses the official SoundCloud widget in the browser instead of a custom backend media service.</li>
+        <li>If autoplay is blocked after a reload, the saved SoundCloud source still restores and the UI will tell you to press play once.</li>
         <li>The timer still works fully even if you never load any media.</li>
       </ul>
     </section>

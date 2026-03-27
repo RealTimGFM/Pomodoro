@@ -12,7 +12,7 @@ function applyTheme(theme) {
   document.documentElement.dataset.theme = theme;
   const button = document.getElementById("theme-toggle");
   if (button) {
-    button.textContent = theme === "dark" ? "Light theme" : "Dark theme";
+    button.textContent = theme === "dark" ? "Light mode" : "Dark mode";
   }
 }
 

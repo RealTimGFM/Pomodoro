@@ -93,7 +93,7 @@ function resetSettings() {
   saveSettings(window.localStorage, DEFAULT_SETTINGS);
   populateForm(DEFAULT_SETTINGS);
   refreshPermissionUI();
-  setFeedback("Settings reset to the default study setup.");
+  setFeedback("Settings reset to the default Pomodoro Flow setup.");
 }
 
 function bindEvents() {

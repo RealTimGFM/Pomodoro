@@ -1,4 +1,4 @@
-import { DEFAULT_SETTINGS, STORAGE_KEYS, TIMER_STATUSES } from "./config.js";
+import { DEFAULT_SETTINGS, MEDIA_STATUSES, STORAGE_KEYS } from "./config.js";
 import { createDefaultTimerState, sanitizeTimerState } from "./timer-engine.js";
 
 export function readJSON(storage, key, fallback) {
@@ -46,22 +46,28 @@ export function saveSettings(storage = window.localStorage, settings) {
 
 export function createDefaultMediaState(settings = DEFAULT_SETTINGS) {
   return {
-    selection: null,
+    url: "",
+    normalizedUrl: "",
+    kind: "unknown",
     title: "",
-    sourceTitle: "",
-    channelTitle: "",
-    currentTime: 0,
-    playlistIndex: 0,
-    currentVideoId: "",
+    author: "",
+    currentPositionMs: 0,
+    currentIndex: 0,
+    durationMs: 0,
     volume: settings.defaultVolume,
-    status: TIMER_STATUSES.idle,
+    status: MEDIA_STATUSES.idle,
     shouldResumeOnFocus: false,
+    autoplayBlocked: false,
+    canGoNext: false,
+    canGoPrevious: false,
+    lastError: "",
+    loadedAt: null,
   };
 }
 
 export function createDefaultAppState(settings = DEFAULT_SETTINGS) {
   return {
-    version: 1,
+    version: 2,
     timer: createDefaultTimerState(settings),
     tasks: [],
     activeTaskId: null,
@@ -74,7 +80,7 @@ export function sanitizeAppState(rawState = {}, settings = DEFAULT_SETTINGS) {
   const activeTaskId = tasks.some((task) => task.id === rawState.activeTaskId && !task.done) ? rawState.activeTaskId : null;
 
   return {
-    version: 1,
+    version: 2,
     timer: sanitizeTimerState(rawState.timer, settings),
     tasks,
     activeTaskId,
@@ -123,43 +129,24 @@ export function sanitizeTask(rawTask) {
 
 export function sanitizeMediaState(rawMedia = {}, settings = DEFAULT_SETTINGS) {
   const fallback = createDefaultMediaState(settings);
+
   return {
-    selection: sanitizeSelection(rawMedia.selection),
+    url: typeof rawMedia.url === "string" ? rawMedia.url.trim().slice(0, 500) : "",
+    normalizedUrl: typeof rawMedia.normalizedUrl === "string" ? rawMedia.normalizedUrl.trim().slice(0, 500) : "",
+    kind: ["track", "playlist", "unknown"].includes(rawMedia.kind) ? rawMedia.kind : fallback.kind,
     title: typeof rawMedia.title === "string" ? rawMedia.title : "",
-    sourceTitle: typeof rawMedia.sourceTitle === "string" ? rawMedia.sourceTitle : "",
-    channelTitle: typeof rawMedia.channelTitle === "string" ? rawMedia.channelTitle : "",
-    currentTime: Number.isFinite(rawMedia.currentTime) ? Math.max(0, rawMedia.currentTime) : 0,
-    playlistIndex: Number.isFinite(rawMedia.playlistIndex) ? Math.max(0, Math.floor(rawMedia.playlistIndex)) : 0,
-    currentVideoId: typeof rawMedia.currentVideoId === "string" ? rawMedia.currentVideoId : "",
+    author: typeof rawMedia.author === "string" ? rawMedia.author : "",
+    currentPositionMs: Number.isFinite(rawMedia.currentPositionMs) ? Math.max(0, rawMedia.currentPositionMs) : 0,
+    currentIndex: Number.isFinite(rawMedia.currentIndex) ? Math.max(0, Math.floor(rawMedia.currentIndex)) : 0,
+    durationMs: Number.isFinite(rawMedia.durationMs) ? Math.max(0, rawMedia.durationMs) : 0,
     volume: clampInteger(rawMedia.volume, 0, 100, fallback.volume),
-    status: typeof rawMedia.status === "string" ? rawMedia.status : TIMER_STATUSES.idle,
+    status: Object.values(MEDIA_STATUSES).includes(rawMedia.status) ? rawMedia.status : MEDIA_STATUSES.idle,
     shouldResumeOnFocus: Boolean(rawMedia.shouldResumeOnFocus),
-  };
-}
-
-function sanitizeSelection(rawSelection) {
-  if (!rawSelection || typeof rawSelection !== "object") {
-    return null;
-  }
-
-  if (rawSelection.provider !== "youtube" || !["video", "playlist"].includes(rawSelection.mediaType)) {
-    return null;
-  }
-
-  const sourceId = typeof rawSelection.sourceId === "string" ? rawSelection.sourceId.trim() : "";
-  if (!sourceId) {
-    return null;
-  }
-
-  return {
-    provider: "youtube",
-    mediaType: rawSelection.mediaType,
-    sourceId,
-    normalizedUrl: typeof rawSelection.normalizedUrl === "string" ? rawSelection.normalizedUrl : "",
-    originalUrl: typeof rawSelection.originalUrl === "string" ? rawSelection.originalUrl : "",
-    title: typeof rawSelection.title === "string" ? rawSelection.title : "",
-    channelTitle: typeof rawSelection.channelTitle === "string" ? rawSelection.channelTitle : "",
-    thumbnail: typeof rawSelection.thumbnail === "string" ? rawSelection.thumbnail : "",
+    autoplayBlocked: Boolean(rawMedia.autoplayBlocked),
+    canGoNext: Boolean(rawMedia.canGoNext),
+    canGoPrevious: Boolean(rawMedia.canGoPrevious),
+    lastError: typeof rawMedia.lastError === "string" ? rawMedia.lastError : "",
+    loadedAt: Number.isFinite(rawMedia.loadedAt) ? rawMedia.loadedAt : null,
   };
 }
 
