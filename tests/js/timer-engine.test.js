@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { MODES, TIMER_STATUSES } from "../../app/static/js/config.js";
+import { MODES, TIMER_STATUSES } from "../../assets/js/config.js";
 import {
   createDefaultTimerState,
   pauseTimer,
@@ -9,7 +9,7 @@ import {
   skipTimer,
   startTimer,
   syncTimer,
-} from "../../app/static/js/timer-engine.js";
+} from "../../assets/js/timer-engine.js";
 
 const settings = {
   focusDurationMinutes: 25,

@@ -3,10 +3,13 @@ import {
   getNotificationPermissionState,
   requestBrowserNotificationPermission,
 } from "./notifications.js";
-import { loadSettings, saveSettings, sanitizeSettings } from "./storage.js";
+import { loadSettings, loadTheme, sanitizeSettings, saveSettings, saveTheme } from "./storage.js";
+import { applyTheme, resolveTheme } from "./theme.js";
+import { ToastManager } from "./toast-ui.js";
 
 const elements = {
   form: document.getElementById("settings-form"),
+  themeChoice: document.getElementById("theme-choice"),
   focusDuration: document.getElementById("focus-duration"),
   shortBreakDuration: document.getElementById("short-break-duration"),
   longBreakDuration: document.getElementById("long-break-duration"),
@@ -18,9 +21,13 @@ const elements = {
   requestPermissionButton: document.getElementById("request-permission-button"),
   resetSettingsButton: document.getElementById("reset-settings-button"),
   feedback: document.getElementById("settings-feedback"),
+  toastRegion: document.getElementById("toast-region"),
 };
 
+const toast = new ToastManager(elements.toastRegion);
+
 function populateForm(settings) {
+  elements.themeChoice.value = resolveTheme(loadTheme(window.localStorage));
   elements.focusDuration.value = `${settings.focusDurationMinutes}`;
   elements.shortBreakDuration.value = `${settings.shortBreakDurationMinutes}`;
   elements.longBreakDuration.value = `${settings.longBreakDurationMinutes}`;
@@ -49,14 +56,14 @@ function refreshPermissionUI() {
   const permission = getNotificationPermissionState();
 
   if (permission === "unsupported") {
-    elements.permissionState.textContent = "Unsupported in this browser";
+    elements.permissionState.textContent = "Unsupported";
     elements.browserNotifications.checked = false;
     elements.browserNotifications.disabled = true;
     elements.requestPermissionButton.disabled = true;
     return permission;
   }
 
-  elements.permissionState.textContent = permission === "default" ? "Not requested yet" : permission;
+  elements.permissionState.textContent = permission === "default" ? "Not requested" : permission;
   elements.browserNotifications.disabled = permission === "denied";
   elements.requestPermissionButton.disabled = permission === "granted" || permission === "denied";
 
@@ -69,6 +76,7 @@ function refreshPermissionUI() {
 
 async function saveCurrentSettings() {
   const nextSettings = readFormValues();
+  const nextTheme = resolveTheme(elements.themeChoice.value);
   const permission = refreshPermissionUI();
 
   if (nextSettings.browserNotifications && permission === "default") {
@@ -76,6 +84,7 @@ async function saveCurrentSettings() {
     if (result !== "granted") {
       nextSettings.browserNotifications = false;
       setFeedback("Browser notifications were not enabled because permission was not granted.");
+      toast.show("Notification permission was not granted.", { tone: "warning" });
     }
   }
 
@@ -84,19 +93,33 @@ async function saveCurrentSettings() {
   }
 
   saveSettings(window.localStorage, nextSettings);
+  saveTheme(window.localStorage, nextTheme);
+  applyTheme(nextTheme);
   populateForm(nextSettings);
   refreshPermissionUI();
-  setFeedback("Settings saved locally for this browser.");
+  setFeedback("Settings saved locally.");
+  toast.show("Settings saved.", { tone: "success" });
 }
 
 function resetSettings() {
   saveSettings(window.localStorage, DEFAULT_SETTINGS);
+  saveTheme(window.localStorage, "dark");
+  applyTheme("dark");
   populateForm(DEFAULT_SETTINGS);
   refreshPermissionUI();
-  setFeedback("Settings reset to the default Pomodoro Flow setup.");
+  setFeedback("Settings reset to default values.");
+  toast.show("Settings reset.", { tone: "info" });
 }
 
 function bindEvents() {
+  elements.themeChoice.addEventListener("change", () => {
+    applyTheme(resolveTheme(elements.themeChoice.value));
+  });
+
+  document.addEventListener("pomodoro-flow:theme-change", (event) => {
+    elements.themeChoice.value = resolveTheme(event.detail?.theme);
+  });
+
   elements.defaultVolume.addEventListener("input", () => {
     elements.defaultVolumeValue.textContent = `${elements.defaultVolume.value}%`;
   });
@@ -109,11 +132,12 @@ function bindEvents() {
   elements.requestPermissionButton.addEventListener("click", async () => {
     const result = await requestBrowserNotificationPermission();
     refreshPermissionUI();
-    setFeedback(
+    const message =
       result === "granted"
-        ? "Browser notifications are ready to use."
-        : "Browser notification permission was not granted.",
-    );
+        ? "Browser notifications are ready."
+        : "Browser notification permission was not granted.";
+    setFeedback(message);
+    toast.show(message, { tone: result === "granted" ? "success" : "warning" });
   });
 
   elements.resetSettingsButton.addEventListener("click", () => {

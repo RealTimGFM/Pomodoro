@@ -7,7 +7,7 @@ import {
   detectSoundCloudUrlKind,
   isLikelySoundCloudUrl,
   normalizeSoundCloudUrl,
-} from "../../app/static/js/soundcloud-controller.js";
+} from "../../assets/js/soundcloud-controller.js";
 
 test("normalizeSoundCloudUrl keeps supported SoundCloud hosts and strips hash fragments", () => {
   assert.equal(

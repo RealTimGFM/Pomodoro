@@ -1,139 +1,106 @@
 # Pomodoro Flow
 
-Pomodoro Flow is a SoundCloud-first Pomodoro web app built with a thin Flask shell and browser-owned product logic. The timer is the hero, tasks stay lightweight, theme and settings persist in `localStorage`, and the official SoundCloud widget handles playback during focus and break sessions.
+Pomodoro Flow is a static Pomodoro + SoundCloud web app built with plain HTML, CSS, and vanilla JavaScript. The root app is the source of truth, GitHub Pages is the main deployment target, and no backend is required.
 
-## Product shape
+## Features
 
-- Large central Pomodoro timer with focus, short break, and long break modes
-- Timestamp-driven timer engine that survives refreshes and background tabs
-- Five-second transition countdown between automatic session changes
-- Lightweight task list with one active task
-- SoundCloud track or playlist URL loading through the official widget API
-- Timer-controlled playback:
-  - focus starts -> play
-  - breaks start -> pause
-  - later focus sessions -> resume when appropriate
-- Local persistence for settings, timer state, tasks, theme, and the selected SoundCloud source
+- Timer-first home screen with focus, short break, and long break modes
+- Timestamp-based timer engine that stays accurate across refreshes and background tabs
+- SoundCloud music drawer with official widget playback, URL loading, volume, and playlist navigation when available
+- Task drawer with active task support, edit, delete, mark done, and drag-and-drop reorder
+- Full settings page for durations, notifications, and default volume
+- Dark-first theme with polished light mode
+- First-run onboarding and accessible toast feedback
+- Local-first persistence across pages
 
-## Tech stack
-
-- Flask for page serving and `/api/health`
-- Vanilla JavaScript modules for timer, tasks, storage, notifications, theme, and SoundCloud control
-- No database
-- No authentication
-- No queue backend
-
-## Local setup
-
-1. Create a virtual environment and install Python dependencies:
-
-```bash
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-```
-
-2. Run the Flask app:
-
-```bash
-python app.py
-```
-
-3. Open `http://127.0.0.1:5000`.
-
-## Frontend tests
-
-Run the Flask route tests:
-
-```bash
-pytest
-```
-
-Run the browser-module tests:
-
-```bash
-npm run test:frontend
-```
-
-The Node tests cover the timer engine, storage sanitization, and SoundCloud controller helpers. They do not attempt to browser-test the live SoundCloud network widget.
-
-## SoundCloud-first behavior
-
-- Paste a SoundCloud track URL or playlist URL on the home page.
-- The app loads the official SoundCloud widget embed in a compact panel.
-- The timer remains fully usable even when no media is loaded.
-- The app does not rip, proxy, extract, or download SoundCloud audio.
-- V1 is intentionally SoundCloud-first. There is no YouTube workflow in the main web app.
-
-## Autoplay caveat
-
-Modern browsers sometimes block autoplay inside embedded players, especially after a reload. Pomodoro Flow restores the saved SoundCloud source when possible and shows a clear status message if playback needs one manual click first:
-
-`Browser blocked autoplay. Press play once and future timer control will work better.`
-
-## Persistence model
-
-Everything is stored locally in the browser with `localStorage`:
-
-- Timer state
-- Settings
-- Tasks
-- Theme
-- Current SoundCloud URL
-- Media title and playback-related state
-
-No database is required for local use or for deployment.
-
-## Render deployment
-
-This repo includes a `render.yaml` for a simple Flask deployment.
-
-Render uses:
-
-- `pip install -r requirements.txt`
-- `gunicorn app:app`
-
-Only `SECRET_KEY` is configured as an environment variable by default because the app does not need a media API backend.
-
-## Project structure
+## Project Structure
 
 ```text
-app.py
-app/
-  __init__.py
-  config.py
-  routes/
-    __init__.py
-    api.py
-    pages.py
-  static/
-    css/
-      styles.css
-    js/
-      config.js
-      home.js
-      notifications.js
-      settings.js
-      soundcloud-controller.js
-      storage.js
-      theme.js
-      timer-engine.js
-  templates/
-    base.html
-    home.html
-    settings.html
+index.html
+settings.html
+assets/
+  css/
+    styles.css
+  icons/
+    favicon.svg
+  js/
+    config.js
+    drag-sort.js
+    drawers.js
+    home.js
+    notifications.js
+    onboarding.js
+    settings.js
+    soundcloud-controller.js
+    storage.js
+    theme.js
+    timer-engine.js
+    toast-ui.js
 tests/
-  conftest.py
-  test_routes.py
   js/
     soundcloud-controller.test.js
     storage.test.js
     timer-engine.test.js
-README.md
-EXPLANATION.md
-FutureImprovement.txt
-requirements.txt
 package.json
-render.yaml
-runtime.txt
+README.md
 ```
+
+## Local Preview
+
+Use any simple static server from the repo root.
+
+```bash
+python -m http.server 8000
+```
+
+Then open `http://127.0.0.1:8000`.
+
+If you prefer npm scripts:
+
+```bash
+npm run preview
+```
+
+## Frontend Tests
+
+Run the frontend test suite with:
+
+```bash
+npm test
+```
+
+That runs the vanilla JS tests in `tests/js` for:
+
+- timer engine behavior
+- storage sanitization and persistence helpers
+- SoundCloud URL and embed helpers
+
+## GitHub Pages Deployment
+
+1. Push the repo to GitHub.
+2. Open `Settings -> Pages`.
+3. Choose `Deploy from a branch`.
+4. Select your main branch and `/ (root)`.
+5. Save.
+
+GitHub Pages will publish `index.html` from the repo root, and all asset links are already relative for static hosting.
+
+## localStorage
+
+Pomodoro Flow stores everything locally in the browser:
+
+- timer state
+- settings
+- tasks and active task
+- theme choice
+- drawer UI state
+- onboarding completion
+- current SoundCloud URL and playback-related state
+
+No server, database, or account system is involved.
+
+## Notes
+
+- The app uses the official SoundCloud widget in the browser.
+- The timer still works fully without music loaded.
+- Browser autoplay policies can block restored playback after reload; pressing play once re-enables timer-led control more reliably.
