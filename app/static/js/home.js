@@ -1,5 +1,5 @@
-import { MODES, MODE_LABELS, TIMER_STATUSES } from "./config.js";
-import { YouTubeMediaController } from "./media-controller.js";
+import { MODES, MODE_LABELS, STORAGE_KEYS, TIMER_STATUSES } from "./config.js";
+import { MediaControllerRouter, isPlausibleAudioUrl, isYouTubeMediaSelection } from "./media-controller.js";
 import { playNotificationSound, sendBrowserNotification } from "./notifications.js";
 import {
   finishTimer,
@@ -19,17 +19,16 @@ import {
   createDefaultMediaState,
   loadAppState,
   loadSettings,
+  readJSON,
   saveAppState,
   sanitizeTask,
 } from "./storage.js";
 
-const youtubeSearchEnabled = document.body.dataset.youtubeSearchEnabled === "true";
-
 let settings = loadSettings(window.localStorage);
 const state = loadAppState(window.localStorage, settings);
-let searchResults = [];
 let messageTimeoutId = null;
 let lastMediaPersistAt = 0;
+let mediaNotice = "";
 
 const elements = {
   currentMode: document.getElementById("current-mode"),
@@ -55,15 +54,14 @@ const elements = {
   appMessage: document.getElementById("app-message"),
   mediaUrlForm: document.getElementById("media-url-form"),
   mediaUrlInput: document.getElementById("media-url-input"),
-  searchForm: document.getElementById("media-search-form"),
-  searchInput: document.getElementById("search-input"),
-  searchButton: document.getElementById("search-button"),
-  searchResults: document.getElementById("search-results"),
+  localFileInput: document.getElementById("local-file-input"),
   mediaSourceTitle: document.getElementById("media-source-title"),
   clearMediaButton: document.getElementById("clear-media-button"),
+  youtubePlayerShell: document.getElementById("youtube-player-shell"),
   playerPlaceholder: document.getElementById("player-placeholder"),
   volumeRange: document.getElementById("volume-range"),
   volumeValue: document.getElementById("volume-value"),
+  audioStatus: document.getElementById("audio-status"),
   taskForm: document.getElementById("task-form"),
   taskInput: document.getElementById("task-input"),
   taskList: document.getElementById("task-list"),
@@ -71,9 +69,10 @@ const elements = {
   activeTaskSummary: document.getElementById("active-task-summary"),
 };
 
-const mediaController = new YouTubeMediaController({
-  elementId: "youtube-player",
-  placeholderElement: elements.playerPlaceholder,
+const mediaController = new MediaControllerRouter({
+  audioElementId: "audio-player",
+  youtubeElementId: "youtube-player",
+  youtubePlaceholderElement: elements.playerPlaceholder,
   onSnapshot: (snapshot) => {
     handleMediaSnapshot(snapshot);
   },
@@ -227,50 +226,18 @@ function renderTasks() {
 
 function renderMediaPanel() {
   const selection = state.media.selection;
-  elements.mediaSourceTitle.textContent = state.media.title || state.media.sourceTitle || (selection ? "Selected media" : "No media selected");
+  elements.mediaSourceTitle.textContent = state.media.title || state.media.sourceTitle || (selection ? "Media loaded" : "No media selected");
   elements.volumeRange.value = `${state.media.volume}`;
   elements.volumeValue.textContent = `${state.media.volume}%`;
-  elements.searchInput.disabled = !youtubeSearchEnabled;
-  elements.searchButton.disabled = !youtubeSearchEnabled;
   elements.clearMediaButton.disabled = !selection;
-}
-
-function renderSearchResults() {
-  if (!youtubeSearchEnabled) {
-    elements.searchResults.innerHTML = "";
-    return;
-  }
-
-  if (!searchResults.length) {
-    elements.searchResults.innerHTML = "";
-    return;
-  }
-
-  elements.searchResults.innerHTML = searchResults
-    .map(
-      (result, index) => `
-        <article class="search-card">
-          <img class="search-card__thumb" src="${escapeHtml(result.thumbnail || "")}" alt="" loading="lazy">
-          <div class="search-card__content">
-            <span class="search-card__type">${escapeHtml(result.mediaType)}</span>
-            <h3 class="search-card__title">${escapeHtml(result.title)}</h3>
-            <p class="search-card__meta">${escapeHtml(result.channelTitle || "YouTube")}</p>
-            <div class="search-card__actions">
-              <span class="helper-text">${result.mediaType === "playlist" ? "Playlist" : "Video"}</span>
-              <button class="secondary-button" type="button" data-search-index="${index}">Use this</button>
-            </div>
-          </div>
-        </article>
-      `,
-    )
-    .join("");
+  elements.youtubePlayerShell.classList.toggle("hidden", !isYouTubeMediaSelection(selection));
+  elements.audioStatus.textContent = mediaNotice;
 }
 
 function renderAll() {
   renderTimer();
   renderTasks();
   renderMediaPanel();
-  renderSearchResults();
 }
 
 function handleMediaSnapshot(snapshot) {
@@ -278,10 +245,12 @@ function handleMediaSnapshot(snapshot) {
     return;
   }
 
+  const activePlaybackDuringFocus =
+    ["playing", "buffering"].includes(snapshot.status) &&
+    state.timer.mode === MODES.focus &&
+    state.timer.status === TIMER_STATUSES.running;
   const manualPauseDuringFocus =
     snapshot.status === "paused" && state.timer.mode === MODES.focus && state.timer.status === TIMER_STATUSES.running;
-  const activePlaybackDuringFocus =
-    snapshot.status === "playing" && state.timer.mode === MODES.focus && state.timer.status === TIMER_STATUSES.running;
 
   state.media = {
     ...state.media,
@@ -301,7 +270,7 @@ function handleMediaSnapshot(snapshot) {
   }
 }
 
-async function pauseMediaForBreak() {
+function pauseMediaForBreak() {
   if (!state.media.selection) {
     return;
   }
@@ -314,7 +283,7 @@ async function pauseMediaForBreak() {
     ...state.media,
     ...afterPause,
     selection: state.media.selection,
-    shouldResumeOnFocus: beforePause?.status === "playing",
+    shouldResumeOnFocus: ["playing", "buffering"].includes(beforePause?.status),
   };
   persistState();
   renderMediaPanel();
@@ -361,7 +330,7 @@ async function handleTimerEvents(events) {
       );
 
       if (event.fromMode === MODES.focus) {
-        await pauseMediaForBreak();
+        pauseMediaForBreak();
       }
     }
 
@@ -369,7 +338,7 @@ async function handleTimerEvents(events) {
       if (event.mode === MODES.focus) {
         await resumeMediaForFocus();
       } else {
-        await pauseMediaForBreak();
+        pauseMediaForBreak();
       }
     }
   }
@@ -385,91 +354,145 @@ async function applyTimerResult(result, message) {
   }
 }
 
-async function selectMedia(selection) {
-  const shouldAutoplay = state.timer.mode === MODES.focus && state.timer.status === TIMER_STATUSES.running;
-  const volume = Number.isFinite(state.media.volume) ? state.media.volume : settings.defaultVolume;
+function isSameMediaSelection(nextSelection, currentSelection) {
+  if (!nextSelection || !currentSelection || nextSelection.mediaType !== currentSelection.mediaType) {
+    return false;
+  }
+
+  if (nextSelection.mediaType === "audio_url") {
+    return nextSelection.sourceUrl === currentSelection.sourceUrl;
+  }
+
+  if (nextSelection.mediaType === "youtube_video" || nextSelection.mediaType === "youtube_playlist") {
+    return nextSelection.sourceId === currentSelection.sourceId;
+  }
+
+  return false;
+}
+
+async function selectMedia(selection, initialMediaState = null) {
+  const timerIsRunningFocus = state.timer.mode === MODES.focus && state.timer.status === TIMER_STATUSES.running;
+  const shouldAutoplay = true; const volume = Number.isFinite(state.media.volume) ? state.media.volume : settings.defaultVolume;
+  const snapshot = await mediaController.load(selection, {
+    autoplay: shouldAutoplay,
+    resumeState: isSameMediaSelection(selection, state.media.selection) ? state.media : initialMediaState,
+    volume,
+  });
+
+  state.media = {
+    ...createDefaultMediaState(settings),
+    ...snapshot,
+    selection,
+    sourceTitle: selection.title || snapshot?.sourceTitle || initialMediaState?.sourceTitle || "",
+    title: snapshot?.title || initialMediaState?.title || selection.title || "",
+    channelTitle: snapshot?.channelTitle || initialMediaState?.channelTitle || selection.channelTitle || "",
+    playlistIndex: Number.isFinite(snapshot?.playlistIndex)
+      ? snapshot.playlistIndex
+      : Number.isFinite(initialMediaState?.playlistIndex)
+        ? initialMediaState.playlistIndex
+        : 0,
+    currentVideoId: snapshot?.currentVideoId || initialMediaState?.currentVideoId || "",
+    volume,
+    shouldResumeOnFocus: true,
+  };
+
+  mediaNotice = "";
+  if (selection.mediaType !== "local_file") {
+    elements.localFileInput.value = "";
+  }
+
+  persistState();
+  renderMediaPanel();
+  renderTimer();
+  setMessage(
+    timerIsRunningFocus
+      ? "Media loaded and playing for the current focus session."
+      : "Media loaded and playing. It will still pause automatically during breaks."
+  );
+}
+
+async function loadDirectAudioUrl(rawUrl) {
+  const url = rawUrl.trim();
+  if (!url) {
+    setMessage("Paste a music link first.");
+    return;
+  }
+
+  const filename = (() => {
+    try {
+      return new URL(url).pathname.split("/").pop().split("?")[0] || "Audio track";
+    } catch {
+      return "Audio track";
+    }
+  })();
+
+  const selection = {
+    provider: "url",
+    mediaType: "audio_url",
+    sourceUrl: url,
+    title: filename,
+  };
 
   try {
-    const snapshot = await mediaController.load(selection, {
-      autoplay: shouldAutoplay,
-      resumeState: state.media.selection?.sourceId === selection.sourceId ? state.media : null,
-      volume,
-    });
-
-    state.media = {
-      ...createDefaultMediaState(settings),
-      ...snapshot,
-      selection,
-      sourceTitle: selection.title || snapshot?.sourceTitle || "",
-      title: snapshot?.title || selection.title || "",
-      volume,
-      shouldResumeOnFocus: true,
-    };
-
-    persistState();
-    renderMediaPanel();
-    renderTimer();
-    setMessage(shouldAutoplay ? "Media loaded for the current focus session." : "Media loaded and queued for focus.");
+    await selectMedia(selection);
+    elements.mediaUrlInput.value = "";
   } catch (error) {
-    setMessage(error.message || "The selected media could not be loaded.");
+    setMessage(error.message || "That URL could not be loaded as audio.");
   }
 }
 
-async function resolveAndLoadUrl(rawUrl) {
+async function resolveAndLoadYouTubeUrl(rawUrl) {
   const trimmedUrl = rawUrl.trim();
   if (!trimmedUrl) {
-    setMessage("Paste a YouTube video or playlist URL first.");
+    setMessage("Paste a music link first.");
     return;
   }
 
   try {
     const response = await fetch(`/api/media/resolve?url=${encodeURIComponent(trimmedUrl)}`);
-    const payload = await response.json();
+    const payload = await response.json().catch(() => ({}));
     if (!response.ok || !payload.ok) {
-      throw new Error(payload.error || "That URL could not be used.");
+      throw new Error(payload.error || "That link could not be used.");
     }
 
-    await selectMedia(payload.media);
+    await selectMedia(payload.media, payload.media);
     elements.mediaUrlInput.value = "";
   } catch (error) {
-    setMessage(error.message || "That URL could not be used.");
+    setMessage(error.message || "That link could not be used.");
   }
 }
 
-async function performSearch(rawQuery) {
-  const query = rawQuery.trim();
-  if (!query) {
-    setMessage("Enter a search term first.");
+async function loadMediaUrl(rawUrl) {
+  const url = rawUrl.trim();
+  if (!url) {
+    setMessage("Paste a music link first.");
     return;
   }
 
-  if (!youtubeSearchEnabled) {
-    setMessage("YouTube search is disabled until YOUTUBE_API_KEY is configured.");
+  if (isPlausibleAudioUrl(url)) {
+    await loadDirectAudioUrl(url);
     return;
   }
 
-  elements.searchButton.disabled = true;
-  elements.searchButton.textContent = "Searching...";
+  await resolveAndLoadYouTubeUrl(url);
+}
+
+async function loadLocalAudioFile(file) {
+  if (!file) {
+    return;
+  }
+
+  const selection = {
+    provider: "local",
+    mediaType: "local_file",
+    file,
+    title: file.name,
+  };
 
   try {
-    const response = await fetch(`/api/youtube/search?q=${encodeURIComponent(query)}&limit=8`);
-    const payload = await response.json();
-    if (!response.ok || !payload.available) {
-      throw new Error(payload.message || "Search could not be completed.");
-    }
-
-    searchResults = payload.results || [];
-    renderSearchResults();
-    if (!searchResults.length) {
-      setMessage("No matching videos or playlists were found.");
-    }
+    await selectMedia(selection);
   } catch (error) {
-    searchResults = [];
-    renderSearchResults();
-    setMessage(error.message || "Search could not be completed.");
-  } finally {
-    elements.searchButton.disabled = false;
-    elements.searchButton.textContent = "Search";
+    setMessage(error.message || "The local file could not be loaded.");
   }
 }
 
@@ -573,7 +596,7 @@ async function tick() {
 }
 
 function bindEvents() {
-  elements.modeSelector.addEventListener("click", async (event) => {
+  elements.modeSelector.addEventListener("click", (event) => {
     const button = event.target.closest("[data-mode]");
     if (!button) {
       return;
@@ -597,10 +620,7 @@ function bindEvents() {
 
   elements.startButton.addEventListener("click", async () => {
     await applyTimerResult(startTimer(state.timer, Date.now(), settings), "Timer started.");
-    if (
-      state.timer.mode === MODES.focus &&
-      (state.media.shouldResumeOnFocus || ["idle", "cued", "buffering"].includes(state.media.status))
-    ) {
+    if (state.timer.mode === MODES.focus && state.media.selection && state.media.shouldResumeOnFocus) {
       await resumeMediaForFocus({ force: true });
     }
   });
@@ -611,10 +631,7 @@ function bindEvents() {
 
   elements.resumeButton.addEventListener("click", async () => {
     await applyTimerResult(resumeTimer(state.timer, Date.now(), settings), "Timer resumed.");
-    if (
-      state.timer.mode === MODES.focus &&
-      (state.media.shouldResumeOnFocus || ["idle", "cued", "buffering"].includes(state.media.status))
-    ) {
+    if (state.timer.mode === MODES.focus && state.media.selection && state.media.shouldResumeOnFocus) {
       await resumeMediaForFocus({ force: true });
     }
   });
@@ -633,28 +650,22 @@ function bindEvents() {
 
   elements.mediaUrlForm.addEventListener("submit", async (event) => {
     event.preventDefault();
-    await resolveAndLoadUrl(elements.mediaUrlInput.value);
+    await loadMediaUrl(elements.mediaUrlInput.value);
   });
 
-  elements.searchForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    await performSearch(elements.searchInput.value);
-  });
-
-  elements.searchResults.addEventListener("click", async (event) => {
-    const button = event.target.closest("[data-search-index]");
-    if (!button) {
-      return;
-    }
-    const result = searchResults[Number.parseInt(button.dataset.searchIndex, 10)];
-    if (result) {
-      await selectMedia(result);
+  elements.localFileInput.addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      await loadLocalAudioFile(file);
     }
   });
 
   elements.clearMediaButton.addEventListener("click", () => {
     mediaController.clear();
     state.media = createDefaultMediaState(settings);
+    mediaNotice = "";
+    elements.mediaUrlInput.value = "";
+    elements.localFileInput.value = "";
     persistState();
     renderAll();
     setMessage("Media cleared. The timer can keep running on its own.");
@@ -724,11 +735,16 @@ async function initialize() {
   renderAll();
   bindEvents();
 
+  // Check raw localStorage for a local file selection that sanitizeSelection already cleared.
+  // We cannot restore the File object, so we show a user-facing message instead.
+  const rawState = readJSON(window.localStorage, STORAGE_KEYS.appState, null);
+  const hadLocalFile = rawState?.media?.selection?.mediaType === "local_file";
+
   if (state.media.selection) {
     const shouldAutoplay =
       state.timer.mode === MODES.focus &&
       state.timer.status === TIMER_STATUSES.running &&
-      (state.media.status === "playing" || state.media.shouldResumeOnFocus);
+      (["playing", "buffering"].includes(state.media.status) || state.media.shouldResumeOnFocus);
 
     try {
       await mediaController.load(state.media.selection, {
@@ -739,12 +755,9 @@ async function initialize() {
     } catch (error) {
       setMessage(error.message || "Saved media could not be restored.");
     }
-  } else {
-    mediaController.clear();
-  }
-
-  if (!youtubeSearchEnabled) {
-    elements.searchInput.placeholder = "Search disabled until YOUTUBE_API_KEY is configured";
+  } else if (hadLocalFile) {
+    mediaNotice = "Your local audio file needs to be selected again after refresh.";
+    renderMediaPanel();
   }
 
   window.setInterval(() => {

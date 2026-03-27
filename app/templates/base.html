@@ -3,13 +3,13 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="A focused Pomodoro web app with optional YouTube support for study sessions.">
+    <meta name="description" content="A focused Pomodoro web app with background audio support for study sessions.">
     <title>{% block title %}Pomodoro Flow{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <script type="module" src="{{ url_for('static', filename='js/theme.js') }}"></script>
     {% block head %}{% endblock %}
   </head>
-  <body data-page="{{ page_name }}" data-youtube-search-enabled="{{ 'true' if youtube_search_enabled else 'false' }}">
+  <body data-page="{{ page_name }}">
     <div class="background-glow background-glow--one" aria-hidden="true"></div>
     <div class="background-glow background-glow--two" aria-hidden="true"></div>
 

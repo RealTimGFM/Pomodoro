@@ -142,25 +142,55 @@ function sanitizeSelection(rawSelection) {
     return null;
   }
 
-  if (rawSelection.provider !== "youtube" || !["video", "playlist"].includes(rawSelection.mediaType)) {
-    return null;
+  if (rawSelection.provider === "url" && rawSelection.mediaType === "audio_url") {
+    const sourceUrl = typeof rawSelection.sourceUrl === "string" ? rawSelection.sourceUrl.trim() : "";
+    if (!sourceUrl) {
+      return null;
+    }
+    return {
+      provider: "url",
+      mediaType: "audio_url",
+      sourceUrl,
+      title: typeof rawSelection.title === "string" ? rawSelection.title : "",
+    };
   }
 
-  const sourceId = typeof rawSelection.sourceId === "string" ? rawSelection.sourceId.trim() : "";
-  if (!sourceId) {
-    return null;
+  if (
+    rawSelection.provider === "youtube" &&
+    (rawSelection.mediaType === "youtube_video" || rawSelection.mediaType === "youtube_playlist")
+  ) {
+    const sourceId = typeof rawSelection.sourceId === "string" ? rawSelection.sourceId.trim() : "";
+    const normalizedUrl =
+      typeof rawSelection.normalizedUrl === "string" && rawSelection.normalizedUrl.trim()
+        ? rawSelection.normalizedUrl.trim()
+        : typeof rawSelection.sourceUrl === "string"
+          ? rawSelection.sourceUrl.trim()
+          : "";
+
+    if (!sourceId || !normalizedUrl) {
+      return null;
+    }
+
+    const originalUrl =
+      typeof rawSelection.originalUrl === "string" && rawSelection.originalUrl.trim()
+        ? rawSelection.originalUrl.trim()
+        : normalizedUrl;
+
+    return {
+      provider: "youtube",
+      mediaType: rawSelection.mediaType,
+      sourceId,
+      sourceUrl: normalizedUrl,
+      normalizedUrl,
+      originalUrl,
+      title: typeof rawSelection.title === "string" ? rawSelection.title : "",
+      channelTitle: typeof rawSelection.channelTitle === "string" ? rawSelection.channelTitle : "",
+    };
   }
 
-  return {
-    provider: "youtube",
-    mediaType: rawSelection.mediaType,
-    sourceId,
-    normalizedUrl: typeof rawSelection.normalizedUrl === "string" ? rawSelection.normalizedUrl : "",
-    originalUrl: typeof rawSelection.originalUrl === "string" ? rawSelection.originalUrl : "",
-    title: typeof rawSelection.title === "string" ? rawSelection.title : "",
-    channelTitle: typeof rawSelection.channelTitle === "string" ? rawSelection.channelTitle : "",
-    thumbnail: typeof rawSelection.thumbnail === "string" ? rawSelection.thumbnail : "",
-  };
+  // Local file objects cannot survive a page refresh - clear them gracefully.
+  // home.js detects this condition and shows a user-facing message.
+  return null;
 }
 
 function clampInteger(value, minimum, maximum, fallback) {

@@ -1,12 +1,12 @@
 Future Improvements
 ===================
 
-- Spotify support and a provider abstraction for future media sources
-- Study room feature with synchronized ambience or shared sessions
+- Spotify, YouTube, or SoundCloud integration behind a provider abstraction
+- Re-integrate YouTube as a background audio source with the current audio-first architecture
+- Study room feature with synchronized audio or shared sessions
 - Accounts and login
 - Database-backed persistence
 - Favorites and playback history
-- Smarter media recommendations
 - Presets like Deep Focus, Reading Sprint, or Writing Block
 - Stronger mobile optimization and touch-first refinements
 - Expanded theme system and a fuller theme switcher
@@ -14,8 +14,6 @@ Future Improvements
 - Productivity analytics, statistics, streaks, and charts
 - Admin panel or internal content controls if the product grows
 - Cross-device saved settings and cloud sync
-- Recommendation engine based on task type, session time, or history
-- Content moderation or restrictions if public/community features are added
 - Richer notification choices such as custom sounds or calendar-aware quiet hours
 - Keyboard shortcuts and accessibility upgrades
 - Offline support improvements with optional service worker caching

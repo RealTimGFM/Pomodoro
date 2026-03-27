@@ -78,8 +78,9 @@
         <li>Changes are saved in <code>localStorage</code>, so they stay local to this browser.</li>
         <li>Duration updates apply immediately to idle sessions and to future sessions in a running cycle.</li>
         <li>Browser notifications stay optional and degrade gracefully if permission is denied.</li>
-        <li>YouTube search is {% if youtube_search_enabled %}<strong>enabled</strong>{% else %}<strong>disabled until an API key is configured</strong>{% endif %}.</li>
-        <li>The timer still works fully even if you never load any media.</li>
+        <li>Audio plays automatically on focus start if a track is loaded, and pauses during breaks.</li>
+        <li>Local audio files need to be selected again after a page refresh — direct audio URLs are restored automatically.</li>
+        <li>The timer still works fully even if you never load any audio.</li>
       </ul>
     </section>
   </section>

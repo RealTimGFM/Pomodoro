@@ -94,50 +94,62 @@
       <div class="panel-header">
         <div>
           <p class="panel-kicker">Optional soundtrack</p>
-          <h2 class="panel-title" id="media-heading">Keep media helpful, not distracting.</h2>
+          <h2 class="panel-title" id="media-heading">Keep audio helpful, not distracting.</h2>
         </div>
       </div>
 
       <form class="stack-form" id="media-url-form">
-        <label class="field-label" for="media-url-input">Paste a YouTube video or playlist URL</label>
+        <label class="field-label" for="media-url-input">Paste a music link</label>
         <div class="inline-form">
-          <input class="text-input" id="media-url-input" name="media-url" type="url" placeholder="https://www.youtube.com/watch?v=..." autocomplete="off">
+          <input
+            class="text-input"
+            id="media-url-input"
+            name="media-url"
+            type="url"
+            placeholder="https://example.com/music.mp3 or https://youtu.be/..."
+            autocomplete="off"
+          >
           <button class="secondary-button" type="submit">Load</button>
         </div>
+        <p class="helper-text">Supports direct audio file URLs, YouTube video and playlist URLs, and local file uploads below.</p>
       </form>
 
-      <form class="stack-form" id="media-search-form">
-        <label class="field-label" for="search-input">Search YouTube inside the app</label>
-        <div class="inline-form">
-          <input class="text-input" id="search-input" name="search" type="text" placeholder="classical study no lyrics" autocomplete="off">
-          <button class="secondary-button" id="search-button" type="submit">Search</button>
-        </div>
-        <p class="helper-text" id="search-helper">
-          {% if youtube_search_enabled %}
-            Search is enabled. Videos and playlists stay secondary to the timer flow.
-          {% else %}
-            Search needs a configured <code>YOUTUBE_API_KEY</code>. Pasted YouTube links still work without it.
-          {% endif %}
-        </p>
-      </form>
+      <div class="audio-divider">
+        <span class="audio-divider__label">or upload a local file</span>
+      </div>
 
-      <div class="search-results" id="search-results" aria-live="polite"></div>
+      <div class="stack-form">
+        <label class="field-label" for="local-file-input">Local audio file</label>
+        <input class="file-input" id="local-file-input" type="file" accept="audio/*">
+        <p class="helper-text">Local files need to be selected again after a page refresh.</p>
+      </div>
 
-      <div class="player-shell">
-        <div class="player-shell__header">
+      <div class="audio-shell">
+        <div class="audio-shell__header">
           <div>
-            <p class="panel-kicker">Player</p>
+            <p class="panel-kicker">Now playing</p>
             <h3 class="section-title" id="media-source-title">No media selected</h3>
           </div>
-          <button class="ghost-button ghost-button--compact" id="clear-media-button" type="button">Clear media</button>
+          <button class="ghost-button ghost-button--compact" id="clear-media-button" type="button" disabled>Clear</button>
         </div>
 
-        <div class="player-frame">
-          <div class="player-frame__placeholder" id="player-placeholder">
-            Paste a link or search for something calm and repeatable.
+        <div class="youtube-player-shell hidden" id="youtube-player-shell">
+          <div class="youtube-player-shell__copy">
+            <p class="panel-kicker">Compact YouTube player</p>
+            <p class="helper-text">It stays secondary to the timer and only appears when the loaded link is from YouTube.</p>
           </div>
-          <div id="youtube-player" class="youtube-player" aria-label="YouTube player"></div>
+
+          <div class="player-frame player-frame--compact">
+            <div class="player-frame__placeholder" id="player-placeholder">
+              Paste a YouTube video or playlist link to load the compact player.
+            </div>
+            <div id="youtube-player" class="youtube-player" aria-label="YouTube player"></div>
+          </div>
+
+          <p class="helper-text">Browser autoplay rules can require one click inside the embedded player the first time audio is used.</p>
         </div>
+
+        <audio id="audio-player" preload="metadata" aria-label="Audio player"></audio>
 
         <div class="range-row">
           <label class="field-label field-label--inline" for="volume-range">Volume</label>
@@ -145,9 +157,7 @@
           <span class="range-value" id="volume-value">65%</span>
         </div>
 
-        <p class="helper-text" id="autoplay-note">
-          Browser autoplay rules can require one click inside the embedded player the first time audio is used.
-        </p>
+        <p class="helper-text" id="audio-status" aria-live="polite"></p>
       </div>
     </section>
 
