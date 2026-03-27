@@ -9,6 +9,7 @@ load_dotenv(BASE_DIR / ".env")
 
 class Config:
     SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-change-me")
-    YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY", "").strip()
+    APP_NAME = "Pomodoro Flow"
+    APP_TAGLINE = "A SoundCloud-first Pomodoro workspace with frontend-owned state."
     JSON_SORT_KEYS = False
     TEMPLATES_AUTO_RELOAD = True

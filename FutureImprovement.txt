@@ -1,21 +1,22 @@
-Future Improvements
-===================
+Future roadmap for Pomodoro Flow
 
-- Spotify support and a provider abstraction for future media sources
-- Study room feature with synchronized ambience or shared sessions
-- Accounts and login
-- Database-backed persistence
-- Favorites and playback history
-- Smarter media recommendations
-- Presets like Deep Focus, Reading Sprint, or Writing Block
-- Stronger mobile optimization and touch-first refinements
-- Expanded theme system and a fuller theme switcher
-- Stronger security hardening and CSP tuning
-- Productivity analytics, statistics, streaks, and charts
-- Admin panel or internal content controls if the product grows
-- Cross-device saved settings and cloud sync
-- Recommendation engine based on task type, session time, or history
-- Content moderation or restrictions if public/community features are added
-- Richer notification choices such as custom sounds or calendar-aware quiet hours
-- Keyboard shortcuts and accessibility upgrades
-- Offline support improvements with optional service worker caching
+1. Provider abstraction
+- Add a clean multi-provider media layer so SoundCloud, Spotify, and future providers can share one timer contract.
+
+2. Browser extension experiments
+- Explore a YouTube browser-extension version that can coordinate playback in the user's own browser context without turning the main web app back into a YouTube-first product.
+
+3. Better playlist controls
+- Add queue-aware UI around playlist position, artwork, and richer now-playing details while still keeping the timer visually dominant.
+
+4. Shared focus rooms
+- Introduce lightweight study rooms with synchronized session states and presence indicators.
+
+5. Cloud sync
+- Add optional cloud-backed persistence for tasks, settings, and session history later, without making local-first usage dependent on accounts.
+
+6. Session analytics
+- Add daily and weekly focus summaries, completion streaks, and more thoughtful progress history.
+
+7. Mobile app
+- Rebuild the experience as a dedicated mobile app once the browser-first interaction model is stable.

@@ -240,6 +240,7 @@ export function finishTimer(timer, now = Date.now(), settings = DEFAULT_SETTINGS
   return {
     timer: {
       ...createDefaultTimerState(settings, now),
+      sessionsCompleted: synced.sessionsCompleted,
       nextBreakMode: synced.nextBreakMode,
     },
     events: [{ type: "timer-finished", at: now }],
@@ -274,7 +275,7 @@ export function setNextBreakMode(timer, nextBreakMode) {
   return {
     timer: {
       ...synced,
-      nextBreakMode,
+      nextBreakMode: nextBreakMode === MODES.longBreak ? MODES.longBreak : MODES.shortBreak,
     },
     events: [],
   };

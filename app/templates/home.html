@@ -7,8 +7,8 @@
     <section class="panel hero-panel" aria-labelledby="timer-heading">
       <div class="panel-header">
         <div>
-          <p class="panel-kicker">Main timer</p>
-          <h1 class="panel-title" id="timer-heading">Keep the session simple.</h1>
+          <p class="panel-kicker">Timer-first workspace</p>
+          <h1 class="panel-title" id="timer-heading">A SoundCloud-first Pomodoro app that keeps the timer in charge.</h1>
         </div>
         <a class="ghost-button" href="{{ url_for('pages.settings') }}">Open settings</a>
       </div>
@@ -24,7 +24,7 @@
         </div>
         <div class="hero-meta__item">
           <span class="meta-label">Now playing</span>
-          <strong class="meta-value" id="now-playing">Timer only</strong>
+          <strong class="meta-value" id="now-playing">Sound off</strong>
         </div>
       </div>
 
@@ -40,7 +40,7 @@
             <p class="timer-stage__label" id="timer-label">Ready for a clean start.</p>
             <time class="timer-stage__clock" id="time-display" datetime="PT25M">25:00</time>
             <p class="timer-stage__hint" id="timer-hint">
-              The timer keeps running accurately across refreshes and background tabs.
+              The timer stays accurate across refreshes, background tabs, and session transitions.
             </p>
           </div>
         </div>
@@ -73,7 +73,7 @@
         <button class="secondary-button" id="resume-button" type="button">Resume</button>
         <button class="ghost-button" id="reset-button" type="button">Reset</button>
         <button class="ghost-button" id="skip-button" type="button">Skip</button>
-        <button class="danger-button" id="finish-button" type="button">Finish task</button>
+        <button class="danger-button" id="complete-task-button" type="button">Complete active task</button>
       </div>
 
       <div class="next-break">
@@ -93,61 +93,64 @@
     <section class="panel media-panel" aria-labelledby="media-heading">
       <div class="panel-header">
         <div>
-          <p class="panel-kicker">Optional soundtrack</p>
-          <h2 class="panel-title" id="media-heading">Keep media helpful, not distracting.</h2>
+          <p class="panel-kicker">SoundCloud V1</p>
+          <h2 class="panel-title" id="media-heading">Load a track or playlist and let the timer steer playback.</h2>
         </div>
       </div>
 
-      <form class="stack-form" id="media-url-form">
-        <label class="field-label" for="media-url-input">Paste a YouTube video or playlist URL</label>
+      <form class="stack-form" id="soundcloud-form">
+        <label class="field-label" for="soundcloud-url-input">Paste a SoundCloud track or playlist URL</label>
         <div class="inline-form">
-          <input class="text-input" id="media-url-input" name="media-url" type="url" placeholder="https://www.youtube.com/watch?v=..." autocomplete="off">
-          <button class="secondary-button" type="submit">Load</button>
+          <input class="text-input" id="soundcloud-url-input" name="soundcloud-url" type="url" placeholder="https://soundcloud.com/artist/track-name" autocomplete="off">
+          <button class="secondary-button" id="soundcloud-load-button" type="submit">Load</button>
         </div>
-      </form>
-
-      <form class="stack-form" id="media-search-form">
-        <label class="field-label" for="search-input">Search YouTube inside the app</label>
-        <div class="inline-form">
-          <input class="text-input" id="search-input" name="search" type="text" placeholder="classical study no lyrics" autocomplete="off">
-          <button class="secondary-button" id="search-button" type="submit">Search</button>
-        </div>
-        <p class="helper-text" id="search-helper">
-          {% if youtube_search_enabled %}
-            Search is enabled. Videos and playlists stay secondary to the timer flow.
-          {% else %}
-            Search needs a configured <code>YOUTUBE_API_KEY</code>. Pasted YouTube links still work without it.
-          {% endif %}
+        <p class="helper-text">
+          Pomodoro Flow uses the official SoundCloud widget in the browser. If the browser blocks autoplay after reload, press play once and the timer can guide playback again.
         </p>
       </form>
-
-      <div class="search-results" id="search-results" aria-live="polite"></div>
 
       <div class="player-shell">
         <div class="player-shell__header">
           <div>
-            <p class="panel-kicker">Player</p>
-            <h3 class="section-title" id="media-source-title">No media selected</h3>
+            <p class="panel-kicker">Compact player</p>
+            <h3 class="section-title" id="soundcloud-title">No SoundCloud source loaded</h3>
+            <p class="helper-text" id="soundcloud-kind">Add a track or playlist to keep the timer in control.</p>
           </div>
-          <button class="ghost-button ghost-button--compact" id="clear-media-button" type="button">Clear media</button>
+          <button class="ghost-button ghost-button--compact" id="clear-soundcloud-button" type="button">Clear</button>
         </div>
 
         <div class="player-frame">
-          <div class="player-frame__placeholder" id="player-placeholder">
-            Paste a link or search for something calm and repeatable.
+          <div class="player-frame__placeholder" id="soundcloud-placeholder">
+            SoundCloud stays secondary to the timer. Load a source when you want focus sessions to auto-play and breaks to auto-pause.
           </div>
-          <div id="youtube-player" class="youtube-player" aria-label="YouTube player"></div>
+          <iframe
+            id="soundcloud-widget"
+            class="soundcloud-widget"
+            title="SoundCloud player"
+            allow="autoplay"
+            loading="lazy"
+          ></iframe>
+        </div>
+
+        <div class="media-summary">
+          <span class="status-pill" id="soundcloud-state-pill">Idle</span>
+          <p class="helper-text media-summary__text" id="soundcloud-status" aria-live="polite">
+            The app works perfectly well even if you never load media.
+          </p>
+        </div>
+
+        <div class="control-row control-row--media">
+          <button class="secondary-button" id="soundcloud-play-button" type="button">Play</button>
+          <button class="secondary-button" id="soundcloud-pause-button" type="button">Pause</button>
+          <button class="ghost-button" id="soundcloud-previous-button" type="button">Previous</button>
+          <button class="ghost-button" id="soundcloud-next-button" type="button">Next</button>
         </div>
 
         <div class="range-row">
-          <label class="field-label field-label--inline" for="volume-range">Volume</label>
-          <input id="volume-range" type="range" min="0" max="100" step="1">
-          <span class="range-value" id="volume-value">65%</span>
+          <label class="field-label field-label--inline" for="soundcloud-volume-range">Volume</label>
+          <input id="soundcloud-volume-range" type="range" min="0" max="100" step="1">
+          <span class="range-value" id="soundcloud-volume-value">65%</span>
         </div>
-
-        <p class="helper-text" id="autoplay-note">
-          Browser autoplay rules can require one click inside the embedded player the first time audio is used.
-        </p>
       </div>
     </section>
 
@@ -173,7 +176,7 @@
       </div>
 
       <ul class="task-list" id="task-list"></ul>
-      <p class="helper-text" id="task-empty-state">No tasks yet. Add one and choose what this timer should support.</p>
+      <p class="helper-text" id="task-empty-state">No tasks yet. Add one and choose what this focus cycle is for.</p>
     </section>
   </section>
 

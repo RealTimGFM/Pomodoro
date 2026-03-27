@@ -18,6 +18,7 @@ def create_app(config_class=Config) -> Flask:
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "SAMEORIGIN"
+        response.headers["Cache-Control"] = "no-store"
         return response
 
     return app

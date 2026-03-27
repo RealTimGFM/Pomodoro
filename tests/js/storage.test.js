@@ -45,22 +45,23 @@ test("sanitizeSettings clamps invalid numeric values", () => {
   assert.equal(settings.browserNotifications, true);
 });
 
-test("sanitizeAppState removes invalid tasks and invalid media providers", () => {
+test("sanitizeAppState removes invalid tasks and keeps media state local-first", () => {
   const appState = sanitizeAppState({
     tasks: [{ title: " Valid task " }, { title: "   " }],
     activeTaskId: "missing-id",
     media: {
-      selection: {
-        provider: "spotify",
-        mediaType: "track",
-        sourceId: "123",
-      },
+      url: "https://example.com/not-soundcloud",
+      kind: "mixtape",
+      status: "playing",
+      volume: 101,
     },
   });
 
   assert.equal(appState.tasks.length, 1);
   assert.equal(appState.activeTaskId, null);
-  assert.equal(appState.media.selection, null);
+  assert.equal(appState.media.url, "https://example.com/not-soundcloud");
+  assert.equal(appState.media.kind, "unknown");
+  assert.equal(appState.media.volume, 100);
 });
 
 test("theme helpers persist a valid theme value", () => {
@@ -78,5 +79,6 @@ test("createDefaultAppState uses the default timer and media skeleton", () => {
 
   assert.equal(state.tasks.length, 0);
   assert.equal(state.activeTaskId, null);
-  assert.equal(state.media.selection, null);
+  assert.equal(state.media.url, "");
+  assert.equal(state.media.status, "idle");
 });

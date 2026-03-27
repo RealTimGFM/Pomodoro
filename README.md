@@ -1,161 +1,139 @@
 # Pomodoro Flow
 
-Pomodoro Flow is a polished Flask + vanilla JavaScript Pomodoro app built for real daily use and portfolio presentation. The timer is the center of the product, while YouTube support is integrated as a secondary focus aid. Everything persists locally in the browser with `localStorage`; there is no database and no account system in this version.
+Pomodoro Flow is a SoundCloud-first Pomodoro web app built with a thin Flask shell and browser-owned product logic. The timer is the hero, tasks stay lightweight, theme and settings persist in `localStorage`, and the official SoundCloud widget handles playback during focus and break sessions.
 
-## Highlights
+## Product shape
 
-- Reliable Pomodoro flow with focus, short break, and long break modes
-- Large central timer with session counter, current mode, active task, and now-playing summary
-- 5-second countdown before every automatic session transition
-- Background-tab and refresh-safe timer behavior using persisted timestamps
+- Large central Pomodoro timer with focus, short break, and long break modes
+- Timestamp-driven timer engine that survives refreshes and background tabs
+- Five-second transition countdown between automatic session changes
 - Lightweight task list with one active task
-- YouTube URL loading plus optional in-app YouTube search
-- Embedded YouTube player with app-level volume control
-- Sound notifications and browser notifications when permission is available
-- Light and dark theme support
-- Local-first persistence with graceful recovery after browser reopen
-- Render-ready deployment config
+- SoundCloud track or playlist URL loading through the official widget API
+- Timer-controlled playback:
+  - focus starts -> play
+  - breaks start -> pause
+  - later focus sessions -> resume when appropriate
+- Local persistence for settings, timer state, tasks, theme, and the selected SoundCloud source
 
-## Stack
+## Tech stack
 
-- Backend: Flask
-- Frontend: plain JavaScript, HTML, CSS
-- Persistence: browser `localStorage`
-- Testing: `pytest` for Flask/backend logic and `node:test` for browser-state modules
-
-## Project structure
-
-```text
-.
-|-- app.py
-|-- app/
-|   |-- __init__.py
-|   |-- config.py
-|   |-- routes/
-|   |-- services/
-|   |-- static/
-|   |   |-- css/
-|   |   `-- js/
-|   `-- templates/
-|-- tests/
-|   |-- js/
-|   |-- conftest.py
-|   |-- test_routes.py
-|   |-- test_validators.py
-|   `-- test_youtube_service.py
-|-- README.md
-|-- EXPLANATION.md
-|-- FutureImprovement.txt
-|-- requirements.txt
-|-- package.json
-`-- render.yaml
-```
+- Flask for page serving and `/api/health`
+- Vanilla JavaScript modules for timer, tasks, storage, notifications, theme, and SoundCloud control
+- No database
+- No authentication
+- No queue backend
 
 ## Local setup
 
-### 1. Create and activate a virtual environment
-
-Windows PowerShell:
-
-```powershell
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-```
-
-macOS / Linux:
+1. Create a virtual environment and install Python dependencies:
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate
-```
-
-### 2. Install Python dependencies
-
-```bash
+.venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 3. Optional: configure environment variables
-
-Copy `.env.example` to `.env` and set values as needed.
-
-```env
-SECRET_KEY=change-me
-YOUTUBE_API_KEY=
-```
-
-`YOUTUBE_API_KEY` is optional.
-
-- If it is configured, in-app YouTube search works.
-- If it is not configured, the app still works fully for timer/tasks and still accepts pasted YouTube links.
-
-### 4. Run the app
+2. Run the Flask app:
 
 ```bash
 python app.py
 ```
 
-Open `http://127.0.0.1:5000`.
+3. Open `http://127.0.0.1:5000`.
 
-## Tests
+## Frontend tests
 
-### Backend and Flask tests
+Run the Flask route tests:
 
 ```bash
 pytest
 ```
 
-### Frontend logic tests
-
-These use Node's built-in test runner, so no npm install is required.
+Run the browser-module tests:
 
 ```bash
 npm run test:frontend
 ```
 
-If Node is not installed locally, the Python tests still cover the Flask routes, validation, and YouTube parsing logic.
+The Node tests cover the timer engine, storage sanitization, and SoundCloud controller helpers. They do not attempt to browser-test the live SoundCloud network widget.
 
-## YouTube search setup
+## SoundCloud-first behavior
 
-The app uses the YouTube Data API for search and optional metadata lookup.
+- Paste a SoundCloud track URL or playlist URL on the home page.
+- The app loads the official SoundCloud widget embed in a compact panel.
+- The timer remains fully usable even when no media is loaded.
+- The app does not rip, proxy, extract, or download SoundCloud audio.
+- V1 is intentionally SoundCloud-first. There is no YouTube workflow in the main web app.
 
-1. Create a YouTube Data API key in Google Cloud.
-2. Set `YOUTUBE_API_KEY` in `.env`.
-3. Restart the Flask server.
+## Autoplay caveat
 
-If the key is missing, search returns a clear message instead of breaking the rest of the product.
+Modern browsers sometimes block autoplay inside embedded players, especially after a reload. Pomodoro Flow restores the saved SoundCloud source when possible and shows a clear status message if playback needs one manual click first:
 
-## Deployment on Render
+`Browser blocked autoplay. Press play once and future timer control will work better.`
 
-This repo includes `render.yaml` for a Render web service.
+## Persistence model
 
-### Render steps
+Everything is stored locally in the browser with `localStorage`:
 
-1. Push the project to GitHub.
-2. Create a new Render Blueprint deployment or a new Web Service from the repo.
-3. Confirm the service uses:
-   - Build command: `pip install -r requirements.txt`
-   - Start command: `gunicorn app:app`
-4. Set `YOUTUBE_API_KEY` only if you want in-app search.
-5. Deploy.
+- Timer state
+- Settings
+- Tasks
+- Theme
+- Current SoundCloud URL
+- Media title and playback-related state
 
-### Notes for Render
+No database is required for local use or for deployment.
 
-- No database is required.
-- All user data remains in the browser, so deployments are stateless.
-- The app can be redeployed without data migration because state is stored client-side.
+## Render deployment
 
-## Known platform limitations
+This repo includes a `render.yaml` for a simple Flask deployment.
 
-- Browser notifications depend on user permission and browser support.
-- Browser audio autoplay rules can require the user to click inside the embedded YouTube player once before audio can resume automatically.
-- Embedded YouTube UI can be minimized only within official iframe parameters; the app does not attempt unsupported ad-blocking or UI-hiding behavior.
-- When the browser is fully closed, media cannot physically continue playing in the background. The app restores the timer state and the last practical playback snapshot when reopened.
+Render uses:
 
-## Portfolio notes
+- `pip install -r requirements.txt`
+- `gunicorn app:app`
 
-- The architecture is intentionally Flask-native and scalable for future API, database, or auth work.
-- The timer/session logic is separated into testable browser modules.
-- Media search is optional infrastructure rather than a hard dependency.
+Only `SECRET_KEY` is configured as an environment variable by default because the app does not need a media API backend.
 
-See `EXPLANATION.md` for the architectural walkthrough and `FutureImprovement.txt` for deferred roadmap items.
+## Project structure
+
+```text
+app.py
+app/
+  __init__.py
+  config.py
+  routes/
+    __init__.py
+    api.py
+    pages.py
+  static/
+    css/
+      styles.css
+    js/
+      config.js
+      home.js
+      notifications.js
+      settings.js
+      soundcloud-controller.js
+      storage.js
+      theme.js
+      timer-engine.js
+  templates/
+    base.html
+    home.html
+    settings.html
+tests/
+  conftest.py
+  test_routes.py
+  js/
+    soundcloud-controller.test.js
+    storage.test.js
+    timer-engine.test.js
+README.md
+EXPLANATION.md
+FutureImprovement.txt
+requirements.txt
+package.json
+render.yaml
+runtime.txt
+```
