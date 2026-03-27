@@ -325,7 +325,7 @@ export function getStatusLabel(status) {
     case TIMER_STATUSES.paused:
       return "Paused";
     case TIMER_STATUSES.transition:
-      return "Changing session";
+      return "Changing";
     case TIMER_STATUSES.idle:
     default:
       return "Idle";

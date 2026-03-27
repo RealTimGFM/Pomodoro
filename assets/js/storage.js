@@ -1,4 +1,4 @@
-import { DEFAULT_SETTINGS, MEDIA_STATUSES, STORAGE_KEYS } from "./config.js";
+import { DEFAULT_SETTINGS, DEFAULT_UI_STATE, MEDIA_STATUSES, STORAGE_KEYS } from "./config.js";
 import { createDefaultTimerState, sanitizeTimerState } from "./timer-engine.js";
 
 export function readJSON(storage, key, fallback) {
@@ -98,11 +98,11 @@ export function saveAppState(storage = window.localStorage, appState, settings =
 
 export function loadTheme(storage = window.localStorage) {
   const value = storage.getItem(STORAGE_KEYS.theme);
-  return value === "light" || value === "dark" ? value : "system";
+  return value === "light" || value === "dark" || value === "study-time" ? value : "system";
 }
 
 export function saveTheme(storage = window.localStorage, theme) {
-  if (theme === "light" || theme === "dark") {
+  if (theme === "light" || theme === "dark" || theme === "study-time") {
     storage.setItem(STORAGE_KEYS.theme, theme);
     return;
   }
@@ -148,6 +148,44 @@ export function sanitizeMediaState(rawMedia = {}, settings = DEFAULT_SETTINGS) {
     lastError: typeof rawMedia.lastError === "string" ? rawMedia.lastError : "",
     loadedAt: Number.isFinite(rawMedia.loadedAt) ? rawMedia.loadedAt : null,
   };
+}
+
+export function sanitizeUiState(rawState = {}) {
+  const rawDrawers = rawState.drawers && typeof rawState.drawers === "object" ? rawState.drawers : {};
+  const sanitizeDrawer = (name) => {
+    const fallback = DEFAULT_UI_STATE.drawers[name];
+    const rawDrawer = rawDrawers[name] && typeof rawDrawers[name] === "object" ? rawDrawers[name] : {};
+    const pinned = typeof rawDrawer.pinned === "boolean" ? rawDrawer.pinned : fallback.pinned;
+    const open = pinned ? true : typeof rawDrawer.open === "boolean" ? rawDrawer.open : fallback.open;
+
+    return {
+      open,
+      pinned,
+    };
+  };
+
+  return {
+    onboardingCompleted:
+      typeof rawState.onboardingCompleted === "boolean"
+        ? rawState.onboardingCompleted
+        : DEFAULT_UI_STATE.onboardingCompleted,
+    doneTasksExpanded:
+      typeof rawState.doneTasksExpanded === "boolean" ? rawState.doneTasksExpanded : DEFAULT_UI_STATE.doneTasksExpanded,
+    musicEmbedExpanded:
+      typeof rawState.musicEmbedExpanded === "boolean" ? rawState.musicEmbedExpanded : DEFAULT_UI_STATE.musicEmbedExpanded,
+    drawers: {
+      music: sanitizeDrawer("music"),
+      tasks: sanitizeDrawer("tasks"),
+    },
+  };
+}
+
+export function loadUiState(storage = window.localStorage) {
+  return sanitizeUiState(readJSON(storage, STORAGE_KEYS.ui, DEFAULT_UI_STATE));
+}
+
+export function saveUiState(storage = window.localStorage, uiState) {
+  writeJSON(storage, STORAGE_KEYS.ui, sanitizeUiState(uiState));
 }
 
 function clampInteger(value, minimum, maximum, fallback) {

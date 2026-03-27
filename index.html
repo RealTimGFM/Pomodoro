@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="Pomodoro Flow is a calm, SoundCloud-friendly Pomodoro workspace with a timer-first home screen, tasks, themes, and local-first persistence."
+    >
+    <title>Pomodoro Flow</title>
+    <link rel="icon" type="image/svg+xml" href="./assets/icons/favicon.svg">
+    <script>
+      (function () {
+        try {
+          const stored = localStorage.getItem("pomodoro-flow.theme");
+          const theme = stored === "light" || stored === "dark" || stored === "study-time"
+            ? stored
+            : window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+          document.documentElement.dataset.theme = theme;
+        } catch (error) {}
+      }());
+    </script>
+    <link rel="stylesheet" href="./assets/css/styles.css">
+    <script type="module" src="./assets/js/theme.js"></script>
+  </head>
+  <body data-page="home">
+    <div class="site-shell">
+      <header class="site-header">
+        <a class="brand" href="./index.html" aria-label="Pomodoro Flow home">
+          <span class="brand__mark" aria-hidden="true"></span>
+          <span class="brand__copy">
+            <span class="brand__eyebrow">Focus workspace</span>
+            <span class="brand__title">Pomodoro Flow</span>
+          </span>
+        </a>
+
+        <nav class="site-nav" aria-label="Primary navigation">
+          <a class="site-nav__link is-active" href="./index.html" aria-current="page">Home</a>
+          <a class="site-nav__link" href="./settings.html">Settings</a>
+          <button class="theme-toggle" id="theme-toggle" type="button">
+            <svg class="theme-toggle__icon" data-theme-icon viewBox="0 0 24 24" aria-hidden="true"></svg>
+            <span data-theme-label>Theme</span>
+          </button>
+        </nav>
+      </header>
+
+      <main class="page home-page">
+        <div class="home-layout" id="app-layout" data-has-pinned="true">
+          <section class="panel timer-hero" aria-labelledby="timer-heading">
+            <div class="hero-head">
+              <div>
+                <p class="eyebrow">Timer first. Music nearby.</p>
+                <h1 class="hero-title" id="timer-heading">Focused work, less visual noise.</h1>
+              </div>
+              <div class="drawer-launchers">
+                <button class="drawer-chip" type="button" data-drawer-trigger="music" aria-controls="music-drawer" aria-expanded="true">
+                  <span>Music</span>
+                  <small data-drawer-status>Pinned</small>
+                </button>
+                <button class="drawer-chip" type="button" data-drawer-trigger="tasks" aria-controls="tasks-drawer" aria-expanded="false">
+                  <span>Tasks</span>
+                  <small data-drawer-status>Closed</small>
+                </button>
+              </div>
+            </div>
+
+            <div class="hero-info-grid">
+              <article class="info-card">
+                <span class="info-card__label">Mode</span>
+                <strong class="info-card__value" id="current-mode">Focus</strong>
+              </article>
+              <article class="info-card">
+                <span class="info-card__label">Next break</span>
+                <strong class="info-card__value" id="next-break-label">Short break</strong>
+              </article>
+              <article class="info-card">
+                <span class="info-card__label">Sessions</span>
+                <strong class="info-card__value" id="session-count">0</strong>
+              </article>
+              <article class="info-card">
+                <span class="info-card__label">Now playing</span>
+                <strong class="info-card__value" id="now-playing">Nothing loaded</strong>
+              </article>
+            </div>
+
+            <div class="segmented-control" id="mode-selector" role="tablist" aria-label="Session mode">
+              <button class="segment is-active" data-mode="focus" type="button">Focus</button>
+              <button class="segment" data-mode="short_break" type="button">Short break</button>
+              <button class="segment" data-mode="long_break" type="button">Long break</button>
+            </div>
+
+            <div class="clock-stage">
+              <div class="clock-stage__progress" aria-hidden="true">
+                <span id="timer-progress-value"></span>
+              </div>
+              <p class="clock-stage__label" id="timer-label">One thing at a time</p>
+              <time class="clock-stage__clock" id="time-display" datetime="PT25M">25:00</time>
+              <div class="clock-stage__meta">
+                <span class="status-pill" id="timer-status">Idle</span>
+                <span class="clock-stage__detail" id="timer-detail">Timestamp-based timing stays accurate across refreshes and background tabs.</span>
+              </div>
+            </div>
+
+            <div class="countdown-banner" id="countdown-banner" hidden aria-live="assertive">
+              <span>Switching in</span>
+              <strong id="countdown-seconds">5</strong>
+              <span>seconds</span>
+            </div>
+
+            <div class="hero-actions">
+              <button class="button button--primary" id="start-button" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.14v13.72a1 1 0 0 0 1.53.85l10.58-6.86a1 1 0 0 0 0-1.7L9.53 4.29A1 1 0 0 0 8 5.14Z"></path></svg>
+                <span>Start</span>
+              </button>
+              <button class="button button--secondary" id="pause-resume-button" type="button" data-mode="idle">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h3v12H8zm5 0h3v12h-3z"></path></svg>
+                <span data-pause-resume-label>Pause</span>
+              </button>
+              <button class="button button--ghost" id="reset-button" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5V2L7 6l5 4V7a5 5 0 1 1-4.9 6H5.06A7 7 0 1 0 12 5Z"></path></svg>
+                <span>Reset</span>
+              </button>
+              <details class="mini-menu">
+                <summary>More</summary>
+                <div class="mini-menu__content">
+                  <button class="button button--ghost button--compact" id="skip-button" type="button">Skip session</button>
+                  <a class="button button--ghost button--compact" href="./settings.html">Open settings</a>
+                </div>
+              </details>
+            </div>
+
+            <div class="hero-footer">
+              <div>
+                <p class="eyebrow">Next break preference</p>
+                <div class="segmented-control segmented-control--compact" id="next-break-selector" role="tablist" aria-label="Next break type">
+                  <button class="segment is-active" data-next-break="short_break" type="button">Short</button>
+                  <button class="segment" data-next-break="long_break" type="button">Long</button>
+                </div>
+              </div>
+
+              <div class="active-task-card">
+                <span class="active-task-card__label">Active task</span>
+                <strong class="active-task-card__value" id="current-task">No active task</strong>
+              </div>
+            </div>
+          </section>
+
+          <aside class="drawer-column" id="drawer-column" aria-label="Workspace drawers">
+            <section class="panel drawer" id="music-drawer" data-drawer-panel="music" aria-labelledby="music-title">
+              <div class="drawer__header">
+                <div>
+                  <p class="eyebrow">Music</p>
+                  <h2 class="drawer__title" id="music-title">SoundCloud</h2>
+                </div>
+                <div class="drawer__controls">
+                  <button class="icon-button icon-button--soft" type="button" data-drawer-pin aria-label="Pin music drawer">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 9 1 6 1 1v1H8v-1l1-1 1-6-4-4V4h12v1l-4 4Z"></path></svg>
+                    <span class="sr-only" data-drawer-pin-label>Pinned</span>
+                  </button>
+                  <button class="icon-button icon-button--soft" type="button" data-drawer-close aria-label="Close music drawer">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7.05 5.64 4.95 4.95 4.95-4.95 1.41 1.41L13.41 12l4.95 4.95-1.41 1.41L12 13.41l-4.95 4.95-1.41-1.41L10.59 12 5.64 7.05Z"></path></svg>
+                  </button>
+                </div>
+              </div>
+
+              <div class="music-summary">
+                <div>
+                  <strong class="music-summary__title" id="soundcloud-title">No source loaded</strong>
+                  <p class="music-summary__meta" id="soundcloud-kind">Paste a SoundCloud URL to begin.</p>
+                </div>
+                <span class="status-pill" id="soundcloud-state-pill">Idle</span>
+              </div>
+
+              <form class="stack-form" id="soundcloud-form">
+                <label class="field-label" for="soundcloud-url-input">URL</label>
+                <div class="inline-field">
+                  <input class="text-input" id="soundcloud-url-input" type="url" placeholder="https://soundcloud.com/artist/track-name" autocomplete="off">
+                  <button class="button button--secondary button--compact" id="soundcloud-load-button" type="submit">Load</button>
+                </div>
+              </form>
+
+              <div class="music-actions">
+                <button class="button button--secondary" id="soundcloud-toggle-button" type="button">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.14v13.72a1 1 0 0 0 1.53.85l10.58-6.86a1 1 0 0 0 0-1.7L9.53 4.29A1 1 0 0 0 8 5.14Z"></path></svg>
+                  <span data-soundcloud-toggle-label>Play</span>
+                </button>
+                <button class="button button--ghost button--compact" id="clear-soundcloud-button" type="button">Clear</button>
+              </div>
+
+              <div class="music-nav" id="soundcloud-nav-row" hidden>
+                <button class="button button--ghost button--compact" id="soundcloud-previous-button" type="button">Previous</button>
+                <button class="button button--ghost button--compact" id="soundcloud-next-button" type="button">Next</button>
+              </div>
+
+              <div class="volume-row">
+                <label class="field-label" for="soundcloud-volume-range">Volume</label>
+                <input id="soundcloud-volume-range" type="range" min="0" max="100" step="1">
+                <span class="volume-row__value" id="soundcloud-volume-value">65%</span>
+              </div>
+
+              <p class="message-chip" id="soundcloud-alert" hidden aria-live="polite"></p>
+              <p class="drawer__status" id="soundcloud-status" aria-live="polite">Load a track or playlist to let the timer steer playback.</p>
+
+              <details class="embed-toggle" id="music-embed-details">
+                <summary>Player</summary>
+                <div class="embed-shell">
+                  <div class="embed-shell__placeholder" id="soundcloud-placeholder">
+                    The official SoundCloud widget stays tucked away here until you need it.
+                  </div>
+                  <iframe
+                    id="soundcloud-widget"
+                    class="soundcloud-widget"
+                    title="SoundCloud player"
+                    allow="autoplay"
+                    loading="lazy"
+                  ></iframe>
+                </div>
+              </details>
+            </section>
+
+            <section class="panel drawer" id="tasks-drawer" data-drawer-panel="tasks" aria-labelledby="tasks-title" hidden>
+              <div class="drawer__header">
+                <div>
+                  <p class="eyebrow">Tasks</p>
+                  <h2 class="drawer__title" id="tasks-title">Keep the list light</h2>
+                </div>
+                <div class="drawer__controls">
+                  <button class="icon-button icon-button--soft" type="button" data-drawer-pin aria-label="Pin task drawer">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 9 1 6 1 1v1H8v-1l1-1 1-6-4-4V4h12v1l-4 4Z"></path></svg>
+                    <span class="sr-only" data-drawer-pin-label>Pin</span>
+                  </button>
+                  <button class="icon-button icon-button--soft" type="button" data-drawer-close aria-label="Close task drawer">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7.05 5.64 4.95 4.95 4.95-4.95 1.41 1.41L13.41 12l4.95 4.95-1.41 1.41L12 13.41l-4.95 4.95-1.41-1.41L10.59 12 5.64 7.05Z"></path></svg>
+                  </button>
+                </div>
+              </div>
+
+              <div class="task-summary">
+                <div>
+                  <span class="task-summary__label">Active task</span>
+                  <strong class="task-summary__value" id="active-task-summary">No active task</strong>
+                </div>
+                <button class="button button--secondary button--compact" id="complete-task-button" type="button">Complete active task</button>
+              </div>
+
+              <form class="stack-form" id="task-form">
+                <label class="field-label" for="task-input">Add task</label>
+                <div class="inline-field">
+                  <input class="text-input" id="task-input" type="text" maxlength="120" placeholder="Finish landing page polish" autocomplete="off">
+                  <button class="button button--secondary button--compact" type="submit">Add</button>
+                </div>
+              </form>
+
+              <ul class="task-list" id="task-list"></ul>
+              <div class="empty-state" id="task-empty-state">
+                <strong>No tasks yet</strong>
+                <span>Add one small thing to focus on.</span>
+              </div>
+
+              <section class="done-section" id="done-tasks-section" hidden>
+                <details id="done-tasks-details">
+                  <summary>Done <span id="done-task-count">0</span></summary>
+                  <ul class="task-list task-list--done" id="done-task-list"></ul>
+                  <p class="empty-inline" id="done-task-empty">No completed tasks yet.</p>
+                </details>
+              </section>
+            </section>
+          </aside>
+        </div>
+
+        <button class="drawer-backdrop" id="drawer-backdrop" type="button" aria-label="Close open drawer"></button>
+      </main>
+    </div>
+
+    <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="false"></div>
+    <div class="onboarding-root" id="onboarding-root" hidden></div>
+
+    <script type="module" src="./assets/js/home.js"></script>
+  </body>
+</html>

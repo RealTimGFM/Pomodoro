@@ -7,7 +7,7 @@ import {
   sanitizeAppState,
   sanitizeSettings,
   saveTheme,
-} from "../../app/static/js/storage.js";
+} from "../../assets/js/storage.js";
 
 class FakeStorage {
   constructor() {
@@ -69,6 +69,9 @@ test("theme helpers persist a valid theme value", () => {
   saveTheme(storage, "dark");
 
   assert.equal(loadTheme(storage), "dark");
+
+  saveTheme(storage, "study-time");
+  assert.equal(loadTheme(storage), "study-time");
 
   saveTheme(storage, "system");
   assert.equal(loadTheme(storage), "system");

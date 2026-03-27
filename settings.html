@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Pomodoro Flow settings for timer durations, notifications, SoundCloud volume, and local-first defaults.">
+    <title>Pomodoro Flow | Settings</title>
+    <link rel="icon" type="image/svg+xml" href="./assets/icons/favicon.svg">
+    <script>
+      (function () {
+        try {
+          const stored = localStorage.getItem("pomodoro-flow.theme");
+          const theme = stored === "light" || stored === "dark" || stored === "study-time"
+            ? stored
+            : window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+          document.documentElement.dataset.theme = theme;
+        } catch (error) {}
+      }());
+    </script>
+    <link rel="stylesheet" href="./assets/css/styles.css">
+    <script type="module" src="./assets/js/theme.js"></script>
+  </head>
+  <body data-page="settings">
+    <div class="site-shell">
+      <header class="site-header">
+        <a class="brand" href="./index.html" aria-label="Pomodoro Flow home">
+          <span class="brand__mark" aria-hidden="true"></span>
+          <span class="brand__copy">
+            <span class="brand__eyebrow">Focus workspace</span>
+            <span class="brand__title">Pomodoro Flow</span>
+          </span>
+        </a>
+
+        <nav class="site-nav" aria-label="Primary navigation">
+          <a class="site-nav__link" href="./index.html">Home</a>
+          <a class="site-nav__link is-active" href="./settings.html" aria-current="page">Settings</a>
+          <button class="theme-toggle" id="theme-toggle" type="button">
+            <svg class="theme-toggle__icon" data-theme-icon viewBox="0 0 24 24" aria-hidden="true"></svg>
+            <span data-theme-label>Theme</span>
+          </button>
+        </nav>
+      </header>
+
+      <main class="page settings-page">
+        <section class="panel settings-hero">
+          <p class="eyebrow">Settings</p>
+          <h1 class="hero-title">Quiet defaults. Local-first control.</h1>
+          <p class="settings-hero__copy">Everything here saves only in this browser.</p>
+        </section>
+
+        <form class="settings-grid" id="settings-form" novalidate>
+          <section class="panel settings-card">
+            <div class="settings-card__header">
+              <p class="eyebrow">Durations</p>
+              <h2 class="drawer__title">Session lengths</h2>
+            </div>
+            <div class="settings-fields">
+              <label class="field-block" for="focus-duration">
+                <span>Focus</span>
+                <input class="text-input" id="focus-duration" name="focusDurationMinutes" type="number" min="1" max="180" inputmode="numeric">
+              </label>
+              <label class="field-block" for="short-break-duration">
+                <span>Short break</span>
+                <input class="text-input" id="short-break-duration" name="shortBreakDurationMinutes" type="number" min="1" max="90" inputmode="numeric">
+              </label>
+              <label class="field-block" for="long-break-duration">
+                <span>Long break</span>
+                <input class="text-input" id="long-break-duration" name="longBreakDurationMinutes" type="number" min="1" max="180" inputmode="numeric">
+              </label>
+            </div>
+          </section>
+
+          <section class="panel settings-card">
+            <div class="settings-card__header">
+              <p class="eyebrow">Appearance</p>
+              <h2 class="drawer__title">Theme</h2>
+            </div>
+            <label class="field-block" for="theme-choice">
+              <span>Color theme</span>
+              <select class="text-input" id="theme-choice" name="themeChoice">
+                <option value="dark">Dark</option>
+                <option value="light">Light</option>
+                <option value="study-time">Study Time</option>
+              </select>
+            </label>
+          </section>
+
+          <section class="panel settings-card">
+            <div class="settings-card__header">
+              <p class="eyebrow">Audio</p>
+              <h2 class="drawer__title">SoundCloud default volume</h2>
+            </div>
+            <div class="volume-panel">
+              <input id="default-volume" name="defaultVolume" type="range" min="0" max="100" step="1">
+              <span class="volume-panel__value" id="default-volume-value">65%</span>
+            </div>
+          </section>
+
+          <section class="panel settings-card">
+            <div class="settings-card__header">
+              <p class="eyebrow">Notifications</p>
+              <h2 class="drawer__title">Attention cues</h2>
+            </div>
+
+            <label class="toggle-row" for="sound-notifications">
+              <span>
+                <strong>Countdown sound</strong>
+                <small>Play a short tone before automatic session changes.</small>
+              </span>
+              <input id="sound-notifications" name="soundNotifications" type="checkbox">
+            </label>
+
+            <label class="toggle-row" for="browser-notifications">
+              <span>
+                <strong>Browser notifications</strong>
+                <small>Show system notifications when permission is granted.</small>
+              </span>
+              <input id="browser-notifications" name="browserNotifications" type="checkbox">
+            </label>
+
+            <div class="permission-card">
+              <div>
+                <span class="permission-card__label">Permission</span>
+                <strong class="permission-card__value" id="permission-state">Checking…</strong>
+              </div>
+              <button class="button button--ghost button--compact" id="request-permission-button" type="button">Request</button>
+            </div>
+          </section>
+
+          <section class="panel settings-card">
+            <div class="settings-card__header">
+              <p class="eyebrow">Local data</p>
+              <h2 class="drawer__title">Save or reset</h2>
+            </div>
+            <p class="settings-note">Changes apply to this browser immediately. Timer, tasks, theme, and SoundCloud state stay local.</p>
+            <div class="settings-actions">
+              <button class="button button--primary" type="submit">Save settings</button>
+              <button class="button button--ghost" id="reset-settings-button" type="button">Reset defaults</button>
+              <a class="button button--secondary" href="./index.html">Back home</a>
+            </div>
+          </section>
+        </form>
+      </main>
+    </div>
+
+    <p class="sr-only" id="settings-feedback" aria-live="polite"></p>
+    <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="false"></div>
+
+    <script type="module" src="./assets/js/settings.js"></script>
+  </body>
+</html>

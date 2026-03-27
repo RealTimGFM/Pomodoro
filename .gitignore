@@ -1,7 +1,6 @@
-.env*
-dump_project.py
-.venv/
-__pycache__/
-.pytest_cache/
-dump.txt
 node_modules/
+.DS_Store
+Thumbs.db
+.venv/
+.env
+.env.*
