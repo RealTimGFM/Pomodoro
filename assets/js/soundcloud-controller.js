@@ -6,6 +6,11 @@ import {
 } from "./config.js";
 
 const VALID_HOSTS = new Set(["soundcloud.com", "www.soundcloud.com", "m.soundcloud.com", "on.soundcloud.com"]);
+const TRACKING_PARAMS = new Set(["si", "fbclid", "gclid", "mc_cid", "mc_eid"]);
+const READY_TIMEOUT_MS = 20000;
+const PLAY_TIMEOUT_MS = 6000;
+const PAUSE_TIMEOUT_MS = 2500;
+const NAV_SETTLE_MS = 1200;
 
 let widgetApiPromise;
 
@@ -36,6 +41,17 @@ export function normalizeSoundCloudUrl(input) {
 
   parsedUrl.protocol = "https:";
   parsedUrl.hash = "";
+
+  if (parsedUrl.hostname.toLowerCase() === "on.soundcloud.com") {
+    for (const key of [...parsedUrl.searchParams.keys()]) {
+      if (key.startsWith("utm_") || TRACKING_PARAMS.has(key)) {
+        parsedUrl.searchParams.delete(key);
+      }
+    }
+  } else {
+    parsedUrl.search = "";
+  }
+
   return parsedUrl.toString();
 }
 
@@ -119,6 +135,9 @@ export class SoundCloudController {
     this.currentSource = null;
     this.snapshot = createSoundCloudSnapshot();
     this.loadToken = 0;
+    this.listenersBound = false;
+    this.pendingReady = null;
+    this.pendingWidgetError = "";
   }
 
   async load(url, { autoplay = false, restorePositionMs = 0, volume = 65 } = {}) {
@@ -134,25 +153,36 @@ export class SoundCloudController {
     await this.ensureWidgetApi();
 
     const loadToken = ++this.loadToken;
+    this.pendingWidgetError = "";
     this.currentSource = {
       url: normalizedUrl,
       kind: detectSoundCloudUrlKind(normalizedUrl) || "unknown",
     };
 
     this.snapshot = createSoundCloudSnapshot({
+      ...this.snapshot,
       url: normalizedUrl,
       normalizedUrl,
       kind: this.currentSource.kind,
       status: MEDIA_STATUSES.loading,
       volume: clampPercent(volume),
+      autoplayBlocked: false,
+      lastError: "",
       loadedAt: Date.now(),
     });
     this.publishSnapshot("load-start");
     this.setPlaceholderVisible(false);
-    this.iframe.src = createSoundCloudEmbedUrl(normalizedUrl, { autoPlay: false });
-    this.widget = window.SC.Widget(this.iframe);
 
-    await this.waitForReady(loadToken);
+    if (!this.widget) {
+      await this.bootstrapWidget(normalizedUrl, loadToken);
+    } else {
+      await this.reloadWidget(normalizedUrl, loadToken);
+    }
+
+    if (loadToken !== this.loadToken) {
+      return this.snapshot;
+    }
+
     await this.setVolume(volume);
 
     if (restorePositionMs > 0) {
@@ -177,22 +207,32 @@ export class SoundCloudController {
       return this.snapshot;
     }
 
+    this.pendingWidgetError = "";
+
     try {
       this.widget.play();
     } catch (error) {
       return this.fail("The SoundCloud widget could not start playback.");
     }
 
-    const didStart = await this.waitForPlaybackState("playing", 1800);
+    const didStart = await this.waitForPlaybackState("playing", PLAY_TIMEOUT_MS);
+
+    const lastError = didStart
+      ? ""
+      : !userInitiated
+        ? AUTOPLAY_BLOCKED_MESSAGE
+        : this.pendingWidgetError || "Playback did not start. Open the player and press play once.";
+
     const snapshot = await this.captureSnapshot({
       status: didStart ? MEDIA_STATUSES.playing : MEDIA_STATUSES.paused,
       autoplayBlocked: !didStart && !userInitiated,
-      lastError: !didStart && !userInitiated ? AUTOPLAY_BLOCKED_MESSAGE : "",
+      lastError,
     });
+
     this.publishSnapshot("play-command", snapshot);
 
-    if (!didStart && !userInitiated) {
-      this.onError(AUTOPLAY_BLOCKED_MESSAGE);
+    if (!didStart && lastError) {
+      this.onError(lastError);
     }
 
     return snapshot;
@@ -209,7 +249,7 @@ export class SoundCloudController {
       return this.fail("The SoundCloud widget could not pause playback.");
     }
 
-    await this.waitForPlaybackState("paused", 1200);
+    await this.waitForPlaybackState("paused", PAUSE_TIMEOUT_MS);
     const snapshot = await this.captureSnapshot({
       status: MEDIA_STATUSES.paused,
       autoplayBlocked: false,
@@ -235,9 +275,8 @@ export class SoundCloudController {
       return this.fail("The SoundCloud widget could not move to the next item.");
     }
 
-    await wait(800);
+    await wait(NAV_SETTLE_MS);
     const nextSnapshot = await this.captureSnapshot({
-      status: MEDIA_STATUSES.playing,
       autoplayBlocked: false,
       lastError: "",
     });
@@ -261,9 +300,8 @@ export class SoundCloudController {
       return this.fail("The SoundCloud widget could not move to the previous item.");
     }
 
-    await wait(800);
+    await wait(NAV_SETTLE_MS);
     const previousSnapshot = await this.captureSnapshot({
-      status: MEDIA_STATUSES.playing,
       autoplayBlocked: false,
       lastError: "",
     });
@@ -282,12 +320,13 @@ export class SoundCloudController {
       return this.fail("The SoundCloud widget could not seek.");
     }
 
-    await wait(250);
+    await wait(300);
     return this.captureSnapshot();
   }
 
   async setVolume(percent) {
     const safeVolume = clampPercent(percent);
+
     this.snapshot = createSoundCloudSnapshot({
       ...this.snapshot,
       volume: safeVolume,
@@ -316,10 +355,11 @@ export class SoundCloudController {
     }
 
     if (!this.widget) {
-      return createSoundCloudSnapshot({
+      this.snapshot = createSoundCloudSnapshot({
         ...this.snapshot,
         ...overrides,
       });
+      return this.snapshot;
     }
 
     const [currentSound, sounds, currentIndex, position, duration, volume, isPaused] = await Promise.all([
@@ -334,9 +374,16 @@ export class SoundCloudController {
 
     const soundList = Array.isArray(sounds) ? sounds : currentSound ? [currentSound] : [];
     const safeIndex = Number.isFinite(currentIndex) ? Math.max(0, Math.floor(currentIndex)) : 0;
-    const status =
-      overrides.status ||
-      (typeof isPaused === "boolean" ? (isPaused ? MEDIA_STATUSES.paused : MEDIA_STATUSES.playing) : this.snapshot.status);
+    const derivedStatus =
+      typeof isPaused === "boolean"
+        ? isPaused
+          ? MEDIA_STATUSES.paused
+          : MEDIA_STATUSES.playing
+        : this.snapshot.status;
+
+    const status = Object.prototype.hasOwnProperty.call(overrides, "status")
+      ? overrides.status
+      : derivedStatus;
 
     this.snapshot = createSoundCloudSnapshot({
       ...this.snapshot,
@@ -356,8 +403,12 @@ export class SoundCloudController {
           : this.snapshot.durationMs,
       canGoNext: soundList.length > 1 && safeIndex < soundList.length - 1,
       canGoPrevious: soundList.length > 1 && safeIndex > 0,
-      autoplayBlocked: Boolean(overrides.autoplayBlocked),
-      lastError: typeof overrides.lastError === "string" ? overrides.lastError : "",
+      autoplayBlocked: Object.prototype.hasOwnProperty.call(overrides, "autoplayBlocked")
+        ? Boolean(overrides.autoplayBlocked)
+        : this.snapshot.autoplayBlocked,
+      lastError: Object.prototype.hasOwnProperty.call(overrides, "lastError")
+        ? `${overrides.lastError || ""}`
+        : this.snapshot.lastError,
       loadedAt: this.snapshot.loadedAt || Date.now(),
     });
 
@@ -366,11 +417,15 @@ export class SoundCloudController {
 
   clear() {
     this.loadToken += 1;
+    this.pendingWidgetError = "";
+    this.clearPendingReady();
     this.widget = null;
     this.currentSource = null;
+
     if (this.iframe) {
       this.iframe.removeAttribute("src");
     }
+
     this.setPlaceholderVisible(true);
     this.snapshot = createSoundCloudSnapshot({
       volume: this.snapshot.volume,
@@ -389,7 +444,7 @@ export class SoundCloudController {
         const existingScript = document.querySelector('script[data-soundcloud-widget-api="true"]');
         const timeoutId = window.setTimeout(() => {
           reject(new Error("The SoundCloud widget took too long to load."));
-        }, 12000);
+        }, READY_TIMEOUT_MS);
 
         const handleLoad = () => {
           if (window.SC?.Widget) {
@@ -435,40 +490,149 @@ export class SoundCloudController {
     return widgetApiPromise;
   }
 
-  waitForReady(loadToken) {
+  async bootstrapWidget(normalizedUrl, loadToken) {
+    const readyPromise = this.createReadyPromise(loadToken);
+    this.iframe.src = createSoundCloudEmbedUrl(normalizedUrl, { autoPlay: false });
+    this.widget = window.SC.Widget(this.iframe);
+    this.bindWidgetEvents();
+    await readyPromise;
+  }
+
+  async reloadWidget(normalizedUrl, loadToken) {
+    if (!this.widget) {
+      throw new Error("The SoundCloud widget could not be mounted.");
+    }
+
     return new Promise((resolve, reject) => {
       const timeoutId = window.setTimeout(() => {
         reject(new Error("The SoundCloud widget could not load that URL."));
-      }, 12000);
+      }, READY_TIMEOUT_MS);
 
-      const events = window.SC.Widget.Events;
-      this.widget.bind(events.READY, async () => {
-        if (loadToken !== this.loadToken) {
-          return;
-        }
-
-        window.clearTimeout(timeoutId);
-        const snapshot = await this.captureSnapshot({
-          status: MEDIA_STATUSES.ready,
-          autoplayBlocked: false,
-          lastError: "",
+      try {
+        this.widget.load(normalizedUrl, {
+          auto_play: false,
+          callback: () => {
+            if (loadToken !== this.loadToken) {
+              return;
+            }
+            window.clearTimeout(timeoutId);
+            resolve(true);
+          },
         });
-        this.publishSnapshot("ready", snapshot);
-        resolve(snapshot);
-      });
+      } catch (error) {
+        window.clearTimeout(timeoutId);
+        reject(new Error("The SoundCloud widget could not load that URL."));
+      }
+    });
+  }
 
-      this.widget.bind(events.PLAY, () => {
-        void this.publishFromEvent("play", { status: MEDIA_STATUSES.playing });
-      });
+  bindWidgetEvents() {
+    if (!this.widget || this.listenersBound) {
+      return;
+    }
 
-      this.widget.bind(events.PAUSE, () => {
-        void this.publishFromEvent("pause", { status: MEDIA_STATUSES.paused });
-      });
+    const events = window.SC.Widget.Events;
 
-      this.widget.bind(events.FINISH, () => {
-        void this.publishFromEvent("finish", { status: MEDIA_STATUSES.ended });
+    this.widget.bind(events.READY, () => {
+      this.resolveReady();
+      void this.publishFromEvent("ready", {
+        status: MEDIA_STATUSES.ready,
+        autoplayBlocked: false,
+        lastError: "",
       });
     });
+
+    this.widget.bind(events.PLAY, () => {
+      this.pendingWidgetError = "";
+      void this.publishFromEvent("play", {
+        status: MEDIA_STATUSES.playing,
+        autoplayBlocked: false,
+        lastError: "",
+      });
+    });
+
+    this.widget.bind(events.PAUSE, () => {
+      void this.publishFromEvent("pause", {
+        status: MEDIA_STATUSES.paused,
+        autoplayBlocked: false,
+        lastError: "",
+      });
+    });
+
+    this.widget.bind(events.FINISH, () => {
+      void this.publishFromEvent("finish", {
+        status: MEDIA_STATUSES.ended,
+        autoplayBlocked: false,
+        lastError: "",
+      });
+    });
+
+    if (events.ERROR) {
+      this.widget.bind(events.ERROR, () => {
+        const message = "SoundCloud reported a player error.";
+        this.pendingWidgetError = message;
+        this.rejectReady(new Error(message));
+        void this.publishFromEvent("error", {
+          status: MEDIA_STATUSES.error,
+          autoplayBlocked: false,
+          lastError: message,
+        });
+        this.onError(message);
+      });
+    }
+
+    this.listenersBound = true;
+  }
+
+  createReadyPromise(loadToken) {
+    this.clearPendingReady();
+
+    return new Promise((resolve, reject) => {
+      const timeoutId = window.setTimeout(() => {
+        if (this.pendingReady?.token === loadToken) {
+          this.pendingReady = null;
+        }
+        reject(new Error("The SoundCloud widget could not load that URL."));
+      }, READY_TIMEOUT_MS);
+
+      this.pendingReady = {
+        token: loadToken,
+        timeoutId,
+        resolve,
+        reject,
+      };
+    });
+  }
+
+  resolveReady() {
+    if (!this.pendingReady || this.pendingReady.token !== this.loadToken) {
+      return;
+    }
+
+    const { timeoutId, resolve } = this.pendingReady;
+    window.clearTimeout(timeoutId);
+    this.pendingReady = null;
+    resolve(true);
+  }
+
+  rejectReady(error) {
+    if (!this.pendingReady || this.pendingReady.token !== this.loadToken) {
+      return;
+    }
+
+    const { timeoutId, reject } = this.pendingReady;
+    window.clearTimeout(timeoutId);
+    this.pendingReady = null;
+    reject(error);
+  }
+
+  clearPendingReady() {
+    if (!this.pendingReady) {
+      return;
+    }
+
+    window.clearTimeout(this.pendingReady.timeoutId);
+    this.pendingReady = null;
   }
 
   async publishFromEvent(reason, overrides = {}) {
@@ -491,6 +655,7 @@ export class SoundCloudController {
 
     while (Date.now() < deadline) {
       const paused = await this.readWidgetValue("isPaused");
+
       if (typeof paused === "boolean") {
         if (target === "playing" && paused === false) {
           return true;
@@ -501,7 +666,7 @@ export class SoundCloudController {
         }
       }
 
-      await wait(120);
+      await wait(160);
     }
 
     return false;

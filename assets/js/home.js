@@ -281,57 +281,50 @@ function renderTaskItem(task) {
   const isEditing = task.id === editingTaskId;
 
   return `
-    <li class="task-item ${isActive ? "is-active" : ""} ${task.done ? "is-done" : ""}" data-task-id="${escapeHtml(task.id)}" draggable="${
-      task.done ? "false" : "true"
+    <li class="task-item ${isActive ? "is-active" : ""} ${task.done ? "is-done" : ""}" data-task-id="${escapeHtml(task.id)}" draggable="${task.done ? "false" : "true"
     }">
       <div class="task-item__handle" aria-hidden="true">
         <svg viewBox="0 0 24 24"><path d="M9 5h2v2H9zm4 0h2v2h-2zM9 11h2v2H9zm4 0h2v2h-2zM9 17h2v2H9zm4 0h2v2h-2z"></path></svg>
       </div>
       <label class="task-check">
         <input class="task-checkbox" type="checkbox" data-task-checkbox ${task.done ? "checked" : ""} aria-label="Mark ${escapeHtml(
-          task.title,
-        )} done">
+      task.title,
+    )} done">
         <span aria-hidden="true"></span>
       </label>
       <div class="task-item__body">
-        ${
-          isEditing
-            ? `<input class="text-input task-item__edit-input" data-task-edit-input type="text" maxlength="120" value="${escapeHtml(
-                task.title,
-              )}" aria-label="Edit task text">`
-            : `<span class="task-item__title">${escapeHtml(task.title)}</span>`
-        }
+        ${isEditing
+      ? `<input class="text-input task-item__edit-input" data-task-edit-input type="text" maxlength="120" value="${escapeHtml(
+        task.title,
+      )}" aria-label="Edit task text">`
+      : `<span class="task-item__title">${escapeHtml(task.title)}</span>`
+    }
         <div class="task-item__meta">
           ${isActive ? '<span class="mini-badge">Active</span>' : ""}
           ${task.done ? '<span class="mini-badge mini-badge--muted">Done</span>' : '<span class="mini-badge mini-badge--soft">Queued</span>'}
         </div>
       </div>
       <div class="task-item__actions">
-        ${
-          task.done
-            ? ""
-            : `<button class="icon-button icon-button--soft" type="button" data-task-action="activate" aria-label="${
-                isActive ? "Task is active" : "Set as active task"
-              }" title="${isActive ? "Active task" : "Set active"}">
+        ${task.done
+      ? ""
+      : `<button class="icon-button icon-button--soft" type="button" data-task-action="activate" aria-label="${isActive ? "Task is active" : "Set as active task"
+      }" title="${isActive ? "Active task" : "Set active"}">
                 <svg viewBox="0 0 24 24"><path d="m12 2 2.7 6.2L21 9l-4.8 4.1 1.5 6.4L12 16.7 6.3 19.5l1.5-6.4L3 9l6.3-.8L12 2Z"></path></svg>
               </button>`
-        }
-        <button class="icon-button icon-button--soft" type="button" data-task-action="${
-          isEditing ? "save" : "edit"
-        }" aria-label="${isEditing ? "Save task" : "Edit task"}" title="${isEditing ? "Save" : "Edit"}">
-          <svg viewBox="0 0 24 24"><path d="${
-            isEditing
-              ? "M9 16.2 4.8 12l1.4-1.4L9 13.4l8.6-8.6L19 6.2Z"
-              : "M4 17.3V20h2.7l8-8-2.7-2.7-8 8ZM17.7 9c.4-.4.4-1 0-1.4l-1.3-1.3c-.4-.4-1-.4-1.4 0l-1 1 2.7 2.7 1-1Z"
-          }"></path></svg>
+    }
+        <button class="icon-button icon-button--soft" type="button" data-task-action="${isEditing ? "save" : "edit"
+    }" aria-label="${isEditing ? "Save task" : "Edit task"}" title="${isEditing ? "Save" : "Edit"}">
+          <svg viewBox="0 0 24 24"><path d="${isEditing
+      ? "M9 16.2 4.8 12l1.4-1.4L9 13.4l8.6-8.6L19 6.2Z"
+      : "M4 17.3V20h2.7l8-8-2.7-2.7-8 8ZM17.7 9c.4-.4.4-1 0-1.4l-1.3-1.3c-.4-.4-1-.4-1.4 0l-1 1 2.7 2.7 1-1Z"
+    }"></path></svg>
         </button>
-        ${
-          isEditing
-            ? `<button class="icon-button icon-button--soft" type="button" data-task-action="cancel" aria-label="Cancel editing" title="Cancel">
+        ${isEditing
+      ? `<button class="icon-button icon-button--soft" type="button" data-task-action="cancel" aria-label="Cancel editing" title="Cancel">
                 <svg viewBox="0 0 24 24"><path d="m7.05 5.64 4.95 4.95 4.95-4.95 1.41 1.41L13.41 12l4.95 4.95-1.41 1.41L12 13.41l-4.95 4.95-1.41-1.41L10.59 12 5.64 7.05Z"></path></svg>
               </button>`
-            : ""
-        }
+      : ""
+    }
         <button class="icon-button icon-button--soft icon-button--danger" type="button" data-task-action="remove" aria-label="Delete task" title="Delete">
           <svg viewBox="0 0 24 24"><path d="M7 6h10l-1 14H8L7 6Zm3-3h4l1 2h4v2H5V5h4l1-2Z"></path></svg>
         </button>
@@ -907,9 +900,26 @@ function bindEvents() {
     state.media = {
       ...state.media,
       ...snapshot,
-      shouldResumeOnFocus: true,
+      shouldResumeOnFocus: snapshot.status === MEDIA_STATUSES.playing ? true : state.media.shouldResumeOnFocus,
     };
-    setMediaStatus("SoundCloud is playing.", { tone: "success", toastMessage: "SoundCloud playing." });
+
+    if (snapshot.status === MEDIA_STATUSES.playing) {
+      setMediaStatus("SoundCloud is playing.", {
+        tone: "success",
+        toastMessage: "SoundCloud playing.",
+      });
+    } else if (snapshot.lastError) {
+      setMediaStatus(snapshot.lastError, {
+        tone: "warning",
+        toastMessage: snapshot.lastError,
+      });
+    } else {
+      setMediaStatus("Playback did not start. Open the player and press play once.", {
+        tone: "warning",
+        toastMessage: "Playback did not start.",
+      });
+    }
+
     persistState();
     renderAll();
   });
