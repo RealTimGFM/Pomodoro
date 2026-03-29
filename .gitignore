@@ -4,3 +4,5 @@ Thumbs.db
 .venv/
 .env
 .env.*
+dump_project.py
+dump.txt
